@@ -38,6 +38,16 @@
           <span class="drop-title">点击或拖拽图片至此</span>
           <span class="drop-sub">支持 JPG、PNG、WebP</span>
         </label>
+        <div class="form-row quality-row">
+          <label class="field full">输出质量
+            <select id="quality">
+              <option value="original">原图尺寸</option>
+              <option value="high" selected>高清（最大边 2048）</option>
+              <option value="medium">标准（最大边 1280）</option>
+              <option value="low">快速（最大边 800）</option>
+            </select>
+          </label>
+        </div>
         <div id="imageInfo" class="file-info"></div>
       </section>
 
@@ -158,6 +168,12 @@
           <span class="step-num">5</span>
           <h2>批量生成</h2>
         </div>
+        <div class="perf-panel" id="perfPanel" style="display:none;">
+          <div class="perf-item"><span>输出尺寸</span><b id="outputSize">-</b></div>
+          <div class="perf-item"><span>处理模式</span><b id="perfMode">-</b></div>
+          <div class="perf-item"><span>内存占用</span><b id="memValue">-</b></div>
+        </div>
+        <div class="perf-warning" id="perfWarning"></div>
         <div class="progress" id="progressBox" style="display:none;">
           <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
           <span id="progressText">0%</span>

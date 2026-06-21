@@ -576,6 +576,46 @@ textarea:focus {
   text-decoration: underline;
 }
 
+.quality-row {
+  margin-top: 12px;
+}
+
+.perf-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.perf-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 80px;
+}
+
+.perf-item span {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.perf-item b {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.perf-warning {
+  font-size: 12px;
+  color: var(--error);
+  margin-bottom: 12px;
+  min-height: 18px;
+}
+
 /* Responsive */
 @media (max-width: 380px) {
   .form-grid {
