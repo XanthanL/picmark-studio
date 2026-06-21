@@ -259,6 +259,9 @@ body {
   white-space: nowrap;
   line-height: 1;
   transform-origin: left top;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-shadow:
     -1px -1px 0 rgba(255, 255, 255, 0.9),
     1px -1px 0 rgba(255, 255, 255, 0.9),
@@ -273,6 +276,31 @@ body {
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.color-badge {
+  margin-left: auto;
+}
+
+@media (max-width: 380px) {
+  .mode-switch {
+    gap: 8px;
+  }
+
+  .mode-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .color-badge {
+    margin-left: 0;
+    padding: 4px 8px;
+  }
+
+  .color-value {
+    display: none;
+  }
 }
 
 .mode-btn {
