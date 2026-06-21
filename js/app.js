@@ -377,13 +377,27 @@
       }
     }
 
+    if (state.mode === 'position') {
+      drawPointPreview(ctx, getPreviewText(), getGenerationOptions());
+    }
+
     updateMarker();
+  }
+
+  function getNames() {
+    return els.namesInput.value
+      .split(/\r?\n/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+  }
+
+  function getPreviewText() {
+    return getNames()[0] || '定位位置';
   }
 
   function getRegionPreviewText(region) {
     if (!region.config.useNameList) return region.config.fixedText || '';
-    const names = els.namesInput.value.split(/\r?\n/).map((n) => n.trim()).filter(Boolean);
-    return names[0] || '预览文字';
+    return getPreviewText();
   }
 
   window.addEventListener('resize', () => {
@@ -401,7 +415,7 @@
       els.canvas.classList.add('pick-mode');
       els.pointControls.style.display = 'flex';
       els.regionControls.style.display = 'none';
-      els.marker.style.display = 'block';
+      els.marker.style.display = 'none';
       if (state.regionEditor) state.regionEditor.setMode('select');
     } else if (mode === 'region') {
       els.modeHint.textContent = '拖拽绘制矩形区域，文字将自动适配区域大小；点击已有区域可选中并调整';
@@ -415,7 +429,7 @@
       els.canvas.classList.remove('pick-mode');
       els.pointControls.style.display = 'flex';
       els.regionControls.style.display = 'none';
-      els.marker.style.display = 'block';
+      els.marker.style.display = 'none';
       if (state.regionEditor) state.regionEditor.setMode('select');
     }
     renderPreview();
@@ -443,7 +457,7 @@
     } else {
       els.posX.value = workX;
       els.posY.value = workY;
-      updateMarker();
+      renderPreview();
     }
   });
 
@@ -532,37 +546,31 @@
   // ===== Marker =====
   function updateMarker() {
     if (!state.sourceImage) return;
-    // posX/posY are stored in work image coordinates (compressed image)
-    // Convert directly to preview canvas coordinate via previewScale
-    const x = parseInt(els.posX.value, 10) * state.previewScale;
-    const y = parseInt(els.posY.value, 10) * state.previewScale;
-    const fontSize = parseInt(els.fontSize.value, 10);
     const color = els.fontColor.value;
-    const fontFamily = getFontFamily();
-    const fontWeight = validateFontWeight();
 
-    els.marker.style.display = 'block';
-    els.marker.style.left = x + 'px';
-    els.marker.style.top = y + 'px';
-    els.marker.style.fontSize = Math.max(12, fontSize * state.previewScale) + 'px';
-    els.marker.style.color = color;
-    els.marker.style.fontFamily = fontFamily;
-    els.marker.style.fontWeight = fontWeight;
+    els.marker.style.display = 'none';
     els.pickedColor.style.backgroundColor = color;
     els.colorValue.textContent = color.toUpperCase();
     updateFontWeightStatus();
   }
 
-  els.posX.addEventListener('input', updateMarker);
-  els.posY.addEventListener('input', updateMarker);
-  els.fontSize.addEventListener('input', updateMarker);
-  els.fontColor.addEventListener('input', updateMarker);
+  function refreshTextPreview() {
+    if (state.sourceImage) renderPreview();
+    else updateFontWeightStatus();
+  }
+
+  els.posX.addEventListener('input', refreshTextPreview);
+  els.posY.addEventListener('input', refreshTextPreview);
+  els.fontSize.addEventListener('input', refreshTextPreview);
+  els.fontColor.addEventListener('input', refreshTextPreview);
+  els.textAlign.addEventListener('change', refreshTextPreview);
+  els.maxWidth.addEventListener('input', refreshTextPreview);
   els.fontFamily.addEventListener('change', () => {
-    updateMarker();
+    refreshTextPreview();
     updateFontWeightStatus();
   });
   els.fontWeight.addEventListener('input', () => {
-    updateMarker();
+    refreshTextPreview();
     updateFontWeightStatus();
   });
 
@@ -595,6 +603,7 @@
         state.customFontFace = fontFamily;
         state.customFontBuffer = buffer;
         els.fontName.textContent = `已加载: ${file.name}`;
+        if (state.sourceImage) renderPreview();
       } catch (err) {
         alert('字体加载失败: ' + err.message);
       }
@@ -619,11 +628,15 @@
         els.namesInput.value = text;
       }
       updateGenerateBtn();
+      if (state.sourceImage) renderPreview();
     };
     reader.readAsText(file);
   });
 
-  els.namesInput.addEventListener('input', updateGenerateBtn);
+  els.namesInput.addEventListener('input', () => {
+    updateGenerateBtn();
+    if (state.sourceImage) renderPreview();
+  });
 
   function updateGenerateBtn() {
     const hasImage = !!state.sourceImage;
@@ -652,6 +665,35 @@
       posX: parseInt(els.posX.value, 10),
       posY: parseInt(els.posY.value, 10),
     };
+  }
+
+  function drawPointText(c, text, options) {
+    c.fillStyle = options.color;
+    c.textBaseline = 'top';
+
+    let currentSize = options.fontSize;
+    c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
+
+    if (options.maxWidth > 0) {
+      while (c.measureText(text).width > options.maxWidth && currentSize > 12) {
+        currentSize -= 2;
+        c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
+      }
+    }
+
+    const textWidth = c.measureText(text).width;
+    let x = options.posX;
+    if (options.align === 'center') x -= textWidth / 2;
+    else if (options.align === 'right') x -= textWidth;
+
+    c.fillText(text, x, options.posY);
+  }
+
+  function drawPointPreview(c, text, options) {
+    c.save();
+    c.scale(state.previewScale, state.previewScale);
+    drawPointText(c, text, options);
+    c.restore();
   }
 
   // ===== Worker =====
@@ -770,25 +812,7 @@
         if (state.regionEditor && state.regionEditor.getRegions().length > 0) {
           drawRegions(c, name);
         } else {
-          c.fillStyle = options.color;
-          c.textBaseline = 'top';
-
-          let currentSize = options.fontSize;
-          c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-
-          if (options.maxWidth > 0) {
-            while (c.measureText(name).width > options.maxWidth && currentSize > 12) {
-              currentSize -= 2;
-              c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-            }
-          }
-
-          const textWidth = c.measureText(name).width;
-          let x = options.posX;
-          if (options.align === 'center') x -= textWidth / 2;
-          else if (options.align === 'right') x -= textWidth;
-
-          c.fillText(name, x, options.posY);
+          drawPointText(c, name, options);
         }
 
         canvas.toBlob((blob) => {
