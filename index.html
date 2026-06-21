@@ -59,10 +59,10 @@
             <span id="colorValue" class="color-value">#C89B5C</span>
           </div>
         </div>
-        <p class="hint" id="modeHint">点击图片，竖线位置即为文字左对齐起始位置</p>
+        <p class="hint" id="modeHint">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
         <div class="canvas-wrapper" id="canvasWrapper">
           <canvas id="previewCanvas"></canvas>
-          <div id="marker" class="marker"></div>
+          <div id="marker" class="marker">定位位置</div>
         </div>
         <div class="form-row compact">
           <label class="coord">X<input type="number" id="posX" value="540"></label>
@@ -92,6 +92,20 @@
           </label>
           <label class="field">最大宽度
             <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
+          </label>
+          <label class="field">字重
+            <select id="fontWeight">
+              <option value="10">10 · Hairline</option>
+              <option value="100">100 · Thin</option>
+              <option value="200">200 · Extra Light</option>
+              <option value="300">300 · Light</option>
+              <option value="400" selected>400 · Normal</option>
+              <option value="500">500 · Medium</option>
+              <option value="600">600 · Semi Bold</option>
+              <option value="700">700 · Bold</option>
+              <option value="800">800 · Extra Bold</option>
+              <option value="900">900 · Black</option>
+            </select>
           </label>
           <label class="field full">字体
             <select id="fontFamily">

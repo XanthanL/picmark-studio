@@ -23,6 +23,7 @@
     textAlign: document.getElementById('textAlign'),
     maxWidth: document.getElementById('maxWidth'),
     fontFamily: document.getElementById('fontFamily'),
+    fontWeight: document.getElementById('fontWeight'),
     fontInput: document.getElementById('fontInput'),
     fontName: document.getElementById('fontName'),
     namesInput: document.getElementById('namesInput'),
@@ -181,12 +182,16 @@
     const y = parseInt(els.posY.value, 10) * state.scale;
     const fontSize = parseInt(els.fontSize.value, 10);
     const color = els.fontColor.value;
+    const fontFamily = getFontFamily();
+    const fontWeight = els.fontWeight.value;
 
     els.marker.style.display = 'block';
     els.marker.style.left = x + 'px';
     els.marker.style.top = y + 'px';
-    els.marker.style.height = Math.max(12, fontSize * state.scale) + 'px';
+    els.marker.style.fontSize = Math.max(12, fontSize * state.scale) + 'px';
     els.marker.style.color = color;
+    els.marker.style.fontFamily = fontFamily;
+    els.marker.style.fontWeight = fontWeight;
     els.pickedColor.style.backgroundColor = color;
     els.colorValue.textContent = color.toUpperCase();
   }
@@ -196,6 +201,7 @@
   els.fontSize.addEventListener('input', updateMarker);
   els.fontColor.addEventListener('input', updateMarker);
   els.fontFamily.addEventListener('change', updateMarker);
+  els.fontWeight.addEventListener('change', updateMarker);
 
   // 自定义字体
   els.fontFamily.addEventListener('change', () => {
@@ -287,6 +293,7 @@
       const align = els.textAlign.value;
       const maxWidth = parseInt(els.maxWidth.value, 10) || 0;
       const fontFamily = getFontFamily();
+      const fontWeight = els.fontWeight.value;
       const posX = parseInt(els.posX.value, 10);
       const posY = parseInt(els.posY.value, 10);
 
@@ -294,13 +301,13 @@
       c.textBaseline = 'top';
 
       let currentSize = fontSize;
-      c.font = `${currentSize}px ${fontFamily}`;
+      c.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
 
       // 自动缩放字号
       if (maxWidth > 0) {
         while (c.measureText(name).width > maxWidth && currentSize > 12) {
           currentSize -= 2;
-          c.font = `${currentSize}px ${fontFamily}`;
+          c.font = `${fontWeight} ${currentSize}px ${fontFamily}`;
         }
       }
 
