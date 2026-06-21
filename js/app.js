@@ -24,6 +24,7 @@
     maxWidth: document.getElementById('maxWidth'),
     fontFamily: document.getElementById('fontFamily'),
     fontWeight: document.getElementById('fontWeight'),
+    fontWeightError: document.getElementById('fontWeightError'),
     fontInput: document.getElementById('fontInput'),
     fontName: document.getElementById('fontName'),
     namesInput: document.getElementById('namesInput'),
@@ -176,6 +177,36 @@
     );
   }
 
+  function validateFontWeight() {
+    const raw = els.fontWeight.value.trim();
+    const errorEl = els.fontWeightError;
+    const inputEl = els.fontWeight;
+
+    if (raw === '') {
+      errorEl.textContent = '';
+      inputEl.classList.remove('invalid');
+      return 100;
+    }
+
+    const value = parseInt(raw, 10);
+
+    if (isNaN(value) || raw !== String(value)) {
+      errorEl.textContent = '请输入整数';
+      inputEl.classList.add('invalid');
+      return 100;
+    }
+
+    if (value < 10 || value > 900) {
+      errorEl.textContent = '字重需在 10 到 900 之间';
+      inputEl.classList.add('invalid');
+      return 100;
+    }
+
+    errorEl.textContent = '';
+    inputEl.classList.remove('invalid');
+    return value;
+  }
+
   function updateMarker() {
     if (!state.image) return;
     const x = parseInt(els.posX.value, 10) * state.scale;
@@ -183,7 +214,7 @@
     const fontSize = parseInt(els.fontSize.value, 10);
     const color = els.fontColor.value;
     const fontFamily = getFontFamily();
-    const fontWeight = els.fontWeight.value;
+    const fontWeight = validateFontWeight();
 
     els.marker.style.display = 'block';
     els.marker.style.left = x + 'px';
@@ -201,7 +232,7 @@
   els.fontSize.addEventListener('input', updateMarker);
   els.fontColor.addEventListener('input', updateMarker);
   els.fontFamily.addEventListener('change', updateMarker);
-  els.fontWeight.addEventListener('change', updateMarker);
+  els.fontWeight.addEventListener('input', updateMarker);
 
   // 自定义字体
   els.fontFamily.addEventListener('change', () => {
@@ -293,7 +324,7 @@
       const align = els.textAlign.value;
       const maxWidth = parseInt(els.maxWidth.value, 10) || 0;
       const fontFamily = getFontFamily();
-      const fontWeight = els.fontWeight.value;
+      const fontWeight = validateFontWeight();
       const posX = parseInt(els.posX.value, 10);
       const posY = parseInt(els.posY.value, 10);
 

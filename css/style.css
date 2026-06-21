@@ -403,6 +403,20 @@ body {
   grid-column: 1 / -1;
 }
 
+.error-msg {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--error);
+  font-weight: 500;
+  min-height: 16px;
+}
+
+.field input.invalid {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
 .custom-font {
   display: flex;
   align-items: center;
