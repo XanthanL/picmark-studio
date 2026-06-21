@@ -89,6 +89,7 @@
     state.perf.workerSupported =
       typeof Worker !== 'undefined' &&
       typeof OffscreenCanvas !== 'undefined' &&
+      typeof OffscreenCanvas.prototype.convertToBlob === 'function' &&
       typeof createImageBitmap !== 'undefined';
 
     // Low power mode: mobile or no worker
@@ -211,6 +212,7 @@
         const c = canvas.getContext('2d');
         c.drawImage(img, 0, 0, targetW, targetH);
 
+        // Preserve transparency: use PNG for compression to avoid alpha loss
         canvas.toBlob(
           (blob) => {
             URL.revokeObjectURL(url);
@@ -222,8 +224,7 @@
               originalHeight: img.height,
             });
           },
-          'image/jpeg',
-          0.92
+          'image/png'
         );
       };
 
@@ -552,16 +553,36 @@
     const imageBitmap = await createImageBitmap(state.workBlob);
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+
       const handler = (e) => {
         if (e.data.type === 'init') {
+          settled = true;
+          clearTimeout(timeout);
           w.removeEventListener('message', handler);
           if (e.data.success) {
+            console.log('[PicMark] Worker initialized successfully');
             resolve(w);
           } else {
+            w.terminate();
+            worker = null;
             reject(new Error('Worker init failed'));
           }
         }
       };
+
+      // Timeout fallback: if worker does not respond in 3s, use main thread
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          w.removeEventListener('message', handler);
+          w.terminate();
+          worker = null;
+          console.warn('[PicMark] Worker init timeout, falling back to main thread');
+          reject(new Error('Worker init timeout'));
+        }
+      }, 3000);
 
       w.addEventListener('message', handler);
       w.postMessage(
@@ -668,64 +689,77 @@
     els.previewList.innerHTML = '';
     state.perf.startTime = performance.now();
 
-    const zip = new JSZip();
-    const total = names.length;
-    const options = getGenerationOptions();
+    try {
+      const zip = new JSZip();
+      const total = names.length;
+      const options = getGenerationOptions();
 
-    // Use worker if supported, otherwise fallback to main thread
-    const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode;
-    let workerInstance = null;
+      console.log('[PicMark] Generation options:', options);
+      console.log('[PicMark] Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
 
-    if (useWorker) {
-      try {
-        workerInstance = await initWorkerWithImage(options);
-      } catch (err) {
-        workerInstance = null;
+      // Use worker if supported, otherwise fallback to main thread
+      const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode;
+      let workerInstance = null;
+
+      if (useWorker) {
+        try {
+          workerInstance = await initWorkerWithImage(options);
+        } catch (err) {
+          console.warn('[PicMark] Worker init failed:', err.message);
+          workerInstance = null;
+        }
       }
-    }
 
-    for (let i = 0; i < total; i++) {
-      const name = names[i];
-      let result;
+      for (let i = 0; i < total; i++) {
+        const name = names[i];
+        let result;
 
-      try {
-        if (workerInstance) {
-          result = await generateOneWithWorker(workerInstance, name, i);
-        } else {
+        try {
+          if (workerInstance) {
+            result = await generateOneWithWorker(workerInstance, name, i);
+          } else {
+            result = await generateOneMainThread(name, options);
+          }
+        } catch (err) {
+          console.error('[PicMark] Generation error for', name, ':', err.message);
+          // Fallback to main thread on worker error
           result = await generateOneMainThread(name, options);
         }
-      } catch (err) {
-        // Fallback to main thread on worker error
-        result = await generateOneMainThread(name, options);
+
+        const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
+        zip.file(`${safeName}.png`, result.blob);
+
+        if (i < 9) {
+          const thumb = document.createElement('img');
+          thumb.src = result.dataUrl;
+          thumb.alt = name;
+          els.previewList.appendChild(thumb);
+        }
+
+        const pct = Math.round(((i + 1) / total) * 100);
+        els.progressBarFill.style.width = pct + '%';
+        els.progressText.textContent = pct + '%';
+
+        if (i % 3 === 0) {
+          updatePerfMonitor();
+        }
       }
 
-      const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
-      zip.file(`${safeName}.png`, result.blob);
+      terminateWorker();
 
-      if (i < 9) {
-        const thumb = document.createElement('img');
-        thumb.src = result.dataUrl;
-        thumb.alt = name;
-        els.previewList.appendChild(thumb);
-      }
+      const content = await zip.generateAsync({ type: 'blob' });
+      const timestamp = formatTimestamp(new Date());
+      saveAs(content, `图印工坊_批量生成_${timestamp}.zip`);
 
-      const pct = Math.round(((i + 1) / total) * 100);
-      els.progressBarFill.style.width = pct + '%';
-      els.progressText.textContent = pct + '%';
-
-      if (i % 3 === 0) {
-        updatePerfMonitor();
-      }
+      const elapsed = ((performance.now() - state.perf.startTime) / 1000).toFixed(1);
+      els.perfWarning.textContent = `生成完成，耗时 ${elapsed} 秒`;
+      console.log('[PicMark] Generation completed in', elapsed, 'seconds');
+    } catch (err) {
+      console.error('[PicMark] Batch generation failed:', err);
+      alert('生成失败: ' + err.message);
+      els.perfWarning.textContent = '生成失败: ' + err.message;
+      terminateWorker();
     }
-
-    terminateWorker();
-
-    const content = await zip.generateAsync({ type: 'blob' });
-    const timestamp = formatTimestamp(new Date());
-    saveAs(content, `图印工坊_批量生成_${timestamp}.zip`);
-
-    const elapsed = ((performance.now() - state.perf.startTime) / 1000).toFixed(1);
-    els.perfWarning.textContent = `生成完成，耗时 ${elapsed} 秒`;
 
     state.isGenerating = false;
     els.generateBtn.textContent = '重新生成并下载';

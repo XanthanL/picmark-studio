@@ -7,6 +7,10 @@ let cachedHeight = 0;
 let cachedOptions = null;
 let cachedFontFamily = null;
 
+self.onerror = function (e) {
+  self.postMessage({ type: 'init', success: false, error: e.message || 'Worker runtime error' });
+};
+
 self.onmessage = async function (e) {
   const { type } = e.data;
 
