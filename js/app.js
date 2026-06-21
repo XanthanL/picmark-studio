@@ -14,6 +14,7 @@
     customFontFace: null,
     customFontBuffer: null,
     mode: 'position',
+    regionEditor: null,
     isGenerating: false,
     perf: {
       startTime: 0,
@@ -59,6 +60,33 @@
     memValue: document.getElementById('memValue'),
     perfMode: document.getElementById('perfMode'),
     perfWarning: document.getElementById('perfWarning'),
+    pointControls: document.getElementById('pointControls'),
+    regionControls: document.getElementById('regionControls'),
+    regionCreate: document.getElementById('regionCreate'),
+    regionDelete: document.getElementById('regionDelete'),
+    regionUndo: document.getElementById('regionUndo'),
+    regionRedo: document.getElementById('regionRedo'),
+    regionSave: document.getElementById('regionSave'),
+    regionLoad: document.getElementById('regionLoad'),
+    regionConfigInput: document.getElementById('regionConfigInput'),
+    regionList: document.getElementById('regionList'),
+    regionConfig: document.getElementById('regionConfig'),
+    regionTextSource: document.getElementById('regionTextSource'),
+    regionFixedTextRow: document.getElementById('regionFixedTextRow'),
+    regionFixedText: document.getElementById('regionFixedText'),
+    regionFontFamily: document.getElementById('regionFontFamily'),
+    regionColor: document.getElementById('regionColor'),
+    regionOpacity: document.getElementById('regionOpacity'),
+    regionRotation: document.getElementById('regionRotation'),
+    regionAlignH: document.getElementById('regionAlignH'),
+    regionAlignV: document.getElementById('regionAlignV'),
+    regionFontWeight: document.getElementById('regionFontWeight'),
+    regionFontStyle: document.getElementById('regionFontStyle'),
+    regionLineHeight: document.getElementById('regionLineHeight'),
+    regionLetterSpacing: document.getElementById('regionLetterSpacing'),
+    regionMinFont: document.getElementById('regionMinFont'),
+    regionMaxFont: document.getElementById('regionMaxFont'),
+    regionAutoFit: document.getElementById('regionAutoFit'),
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -333,7 +361,29 @@
     els.canvas.height = canvasH;
     ctx.drawImage(img, 0, 0, canvasW, canvasH);
 
+    if (state.regionEditor) {
+      state.regionEditor.setScale(scale);
+      state.regionEditor.setSize(img.width, img.height);
+      state.regionEditor.draw();
+
+      // Draw text preview inside regions
+      if (state.mode === 'region') {
+        const active = state.regionEditor.getActiveRegion();
+        const sample = active ? getRegionPreviewText(active) : '预览文字';
+        state.regionEditor.getRegions().forEach((region) => {
+          const text = getRegionPreviewText(region) || sample;
+          state.regionEditor.fitAndRender(ctx, text, region);
+        });
+      }
+    }
+
     updateMarker();
+  }
+
+  function getRegionPreviewText(region) {
+    if (!region.config.useNameList) return region.config.fixedText || '';
+    const names = els.namesInput.value.split(/\r?\n/).map((n) => n.trim()).filter(Boolean);
+    return names[0] || '预览文字';
   }
 
   window.addEventListener('resize', () => {
@@ -341,24 +391,45 @@
   });
 
   // ===== Mode Switch =====
+  function setMode(mode) {
+    state.mode = mode;
+    els.modeBtns.forEach((b) => b.classList.remove('active'));
+    document.querySelector(`.mode-btn[data-mode="${mode}"]`)?.classList.add('active');
+
+    if (mode === 'pick') {
+      els.modeHint.textContent = '点击图片任意位置，即可提取该位置颜色并应用到文字';
+      els.canvas.classList.add('pick-mode');
+      els.pointControls.style.display = 'flex';
+      els.regionControls.style.display = 'none';
+      els.marker.style.display = 'block';
+      if (state.regionEditor) state.regionEditor.setMode('select');
+    } else if (mode === 'region') {
+      els.modeHint.textContent = '拖拽绘制矩形区域，文字将自动适配区域大小；点击已有区域可选中并调整';
+      els.canvas.classList.remove('pick-mode');
+      els.pointControls.style.display = 'none';
+      els.regionControls.style.display = 'block';
+      els.marker.style.display = 'none';
+      initRegionEditor();
+    } else {
+      els.modeHint.textContent = '点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览';
+      els.canvas.classList.remove('pick-mode');
+      els.pointControls.style.display = 'flex';
+      els.regionControls.style.display = 'none';
+      els.marker.style.display = 'block';
+      if (state.regionEditor) state.regionEditor.setMode('select');
+    }
+    renderPreview();
+  }
+
   els.modeBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.mode = btn.dataset.mode;
-      els.modeBtns.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      if (state.mode === 'pick') {
-        els.modeHint.textContent = '点击图片任意位置，即可提取该位置颜色并应用到文字';
-        els.canvas.classList.add('pick-mode');
-      } else {
-        els.modeHint.textContent = '点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览';
-        els.canvas.classList.remove('pick-mode');
-      }
-    });
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
   });
 
   // ===== Canvas Click =====
   els.canvas.addEventListener('click', (e) => {
     if (!state.sourceImage) return;
+    if (state.mode === 'region') return; // region editor handles its own pointer events
+
     const rect = els.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -387,6 +458,47 @@
   }
 
   // ===== Font Weight Validation =====
+  function getWeightLabel(value) {
+    if (value <= 100) return '极细';
+    if (value <= 200) return '特细';
+    if (value <= 300) return '细';
+    if (value <= 400) return '常规偏细';
+    if (value <= 500) return '常规';
+    if (value <= 600) return '半粗';
+    if (value <= 700) return '粗';
+    if (value <= 800) return '特粗';
+    return '黑';
+  }
+
+  function checkWeightSupport(value, fontFamily) {
+    if (typeof document === 'undefined' || !document.fonts || !document.fonts.check) {
+      return true;
+    }
+    try {
+      const firstFamily = fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
+      return document.fonts.check(`${value} 16px "${firstFamily}"`);
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function updateFontWeightStatus() {
+    const value = validateFontWeight();
+    const statusEl = els.fontWeightStatus;
+    const hintEl = els.fontWeightHint;
+
+    statusEl.textContent = `${value} · ${getWeightLabel(value)}`;
+
+    const family = getFontFamily();
+    const supported = checkWeightSupport(value, family);
+
+    if (!supported) {
+      hintEl.textContent = `提示：当前字体可能没有 ${value} 字重，浏览器会近似到最接近的可用字重。如需精确控制，可上传可变字体文件。`;
+    } else {
+      hintEl.textContent = '';
+    }
+  }
+
   function validateFontWeight() {
     const raw = els.fontWeight.value.trim();
     const errorEl = els.fontWeightError;
@@ -438,14 +550,21 @@
     els.marker.style.fontWeight = fontWeight;
     els.pickedColor.style.backgroundColor = color;
     els.colorValue.textContent = color.toUpperCase();
+    updateFontWeightStatus();
   }
 
   els.posX.addEventListener('input', updateMarker);
   els.posY.addEventListener('input', updateMarker);
   els.fontSize.addEventListener('input', updateMarker);
   els.fontColor.addEventListener('input', updateMarker);
-  els.fontFamily.addEventListener('change', updateMarker);
-  els.fontWeight.addEventListener('input', updateMarker);
+  els.fontFamily.addEventListener('change', () => {
+    updateMarker();
+    updateFontWeightStatus();
+  });
+  els.fontWeight.addEventListener('input', () => {
+    updateMarker();
+    updateFontWeightStatus();
+  });
 
   // ===== Quality change re-process =====
   if (els.quality) {
@@ -628,6 +747,14 @@
     });
   }
 
+  function drawRegions(c, name) {
+    if (!state.regionEditor) return;
+    state.regionEditor.getRegions().forEach((region) => {
+      const text = region.config.useNameList ? name : (region.config.fixedText || '');
+      if (text) state.regionEditor.fitAndRender(c, text, region);
+    });
+  }
+
   // ===== Main Thread Fallback =====
   async function generateOneMainThread(name, options) {
     return new Promise((resolve) => {
@@ -640,25 +767,29 @@
 
         c.drawImage(state.workBitmap, 0, 0, state.outputWidth, state.outputHeight);
 
-        c.fillStyle = options.color;
-        c.textBaseline = 'top';
+        if (state.regionEditor && state.regionEditor.getRegions().length > 0) {
+          drawRegions(c, name);
+        } else {
+          c.fillStyle = options.color;
+          c.textBaseline = 'top';
 
-        let currentSize = options.fontSize;
-        c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
+          let currentSize = options.fontSize;
+          c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
 
-        if (options.maxWidth > 0) {
-          while (c.measureText(name).width > options.maxWidth && currentSize > 12) {
-            currentSize -= 2;
-            c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
+          if (options.maxWidth > 0) {
+            while (c.measureText(name).width > options.maxWidth && currentSize > 12) {
+              currentSize -= 2;
+              c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
+            }
           }
+
+          const textWidth = c.measureText(name).width;
+          let x = options.posX;
+          if (options.align === 'center') x -= textWidth / 2;
+          else if (options.align === 'right') x -= textWidth;
+
+          c.fillText(name, x, options.posY);
         }
-
-        const textWidth = c.measureText(name).width;
-        let x = options.posX;
-        if (options.align === 'center') x -= textWidth / 2;
-        else if (options.align === 'right') x -= textWidth;
-
-        c.fillText(name, x, options.posY);
 
         canvas.toBlob((blob) => {
           const reader = new FileReader();
@@ -667,7 +798,7 @@
           };
           reader.readAsDataURL(blob);
         }, 'image/png');
-      });
+      }, 0);
     });
   }
 
@@ -708,8 +839,9 @@
       console.log('[PicMark] Generation options:', options);
       console.log('[PicMark] Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
 
-      // Use worker if supported, otherwise fallback to main thread
-      const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode;
+      // Use worker if supported and no region text (region rendering is done on main thread)
+      const hasRegions = state.regionEditor && state.regionEditor.getRegions().length > 0;
+      const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode && !hasRegions;
       let workerInstance = null;
 
       if (useWorker) {
@@ -778,6 +910,149 @@
     updatePerfMonitor();
   });
 
+  // ===== Region Editor Integration =====
+  function initRegionEditor() {
+    if (!state.sourceImage) return;
+    if (state.regionEditor) {
+      state.regionEditor.setScale(state.previewScale);
+      state.regionEditor.setSize(state.sourceImage.width, state.sourceImage.height);
+      renderRegionList();
+      return;
+    }
+
+    state.regionEditor = new RegionEditor({
+      canvas: els.canvas,
+      ctx: ctx,
+      scale: state.previewScale,
+      width: state.sourceImage.width,
+      height: state.sourceImage.height,
+      onChange: () => {
+        renderRegionList();
+        renderPreview();
+      },
+      onActiveChange: (region) => {
+        renderRegionList();
+        if (region) {
+          syncRegionConfigToUI(region);
+          els.regionConfig.style.display = 'block';
+        } else {
+          els.regionConfig.style.display = 'none';
+        }
+      },
+    });
+
+    bindRegionConfigEvents();
+    renderRegionList();
+  }
+
+  function renderRegionList() {
+    if (!state.regionEditor) return;
+    els.regionList.innerHTML = '';
+    const regions = state.regionEditor.getRegions();
+    regions.forEach((r, idx) => {
+      const item = document.createElement('div');
+      item.className = 'region-item' + (r.id === state.regionEditor.activeId ? ' active' : '');
+      item.innerHTML = `<span>区域 ${idx + 1} · ${r.width}×${r.height}</span><span>${r.config.useNameList ? '名单' : '固定'}</span>`;
+      item.addEventListener('click', () => state.regionEditor.setActive(r.id));
+      els.regionList.appendChild(item);
+    });
+
+    els.regionUndo.disabled = !state.regionEditor.canUndo();
+    els.regionRedo.disabled = !state.regionEditor.canRedo();
+    els.regionDelete.disabled = !state.regionEditor.getActiveRegion();
+  }
+
+  function syncRegionConfigToUI(region) {
+    if (!region) return;
+    const cfg = region.config;
+    els.regionTextSource.value = cfg.useNameList ? 'name' : 'fixed';
+    els.regionFixedTextRow.style.display = cfg.useNameList ? 'none' : 'flex';
+    els.regionFixedText.value = cfg.fixedText || '';
+    els.regionFontFamily.value = cfg.fontFamily;
+    els.regionColor.value = cfg.color;
+    els.regionOpacity.value = cfg.opacity;
+    els.regionRotation.value = cfg.rotation;
+    els.regionAlignH.value = cfg.alignH;
+    els.regionAlignV.value = cfg.alignV;
+    els.regionFontWeight.value = cfg.fontWeight;
+    els.regionFontStyle.value = cfg.fontStyle;
+    els.regionLineHeight.value = cfg.lineHeight;
+    els.regionLetterSpacing.value = cfg.letterSpacing;
+    els.regionMinFont.value = cfg.minFontSize;
+    els.regionMaxFont.value = cfg.maxFontSize;
+    els.regionAutoFit.checked = cfg.autoFit;
+  }
+
+  function bindRegionConfigEvents() {
+    els.regionCreate.addEventListener('click', () => {
+      state.regionEditor.setMode('create');
+      els.modeHint.textContent = '在图片上拖拽绘制一个矩形区域';
+    });
+
+    els.regionDelete.addEventListener('click', () => {
+      const active = state.regionEditor.getActiveRegion();
+      if (active) state.regionEditor.deleteRegion(active.id);
+    });
+
+    els.regionUndo.addEventListener('click', () => state.regionEditor.undo());
+    els.regionRedo.addEventListener('click', () => state.regionEditor.redo());
+
+    els.regionSave.addEventListener('click', () => {
+      const blob = new Blob([state.regionEditor.exportConfig()], { type: 'application/json' });
+      saveAs(blob, 'picmark-region-config.json');
+    });
+
+    els.regionLoad.addEventListener('click', () => els.regionConfigInput.click());
+    els.regionConfigInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        state.regionEditor.loadConfig(ev.target.result);
+        renderPreview();
+      };
+      reader.readAsText(file);
+    });
+
+    const configMap = [
+      { el: els.regionTextSource, key: 'useNameList', type: 'map', map: { name: true, fixed: false } },
+      { el: els.regionFixedText, key: 'fixedText', type: 'string' },
+      { el: els.regionFontFamily, key: 'fontFamily', type: 'string' },
+      { el: els.regionColor, key: 'color', type: 'string' },
+      { el: els.regionOpacity, key: 'opacity', type: 'number' },
+      { el: els.regionRotation, key: 'rotation', type: 'number' },
+      { el: els.regionAlignH, key: 'alignH', type: 'string' },
+      { el: els.regionAlignV, key: 'alignV', type: 'string' },
+      { el: els.regionFontWeight, key: 'fontWeight', type: 'number' },
+      { el: els.regionFontStyle, key: 'fontStyle', type: 'string' },
+      { el: els.regionLineHeight, key: 'lineHeight', type: 'number' },
+      { el: els.regionLetterSpacing, key: 'letterSpacing', type: 'number' },
+      { el: els.regionMinFont, key: 'minFontSize', type: 'number' },
+      { el: els.regionMaxFont, key: 'maxFontSize', type: 'number' },
+      { el: els.regionAutoFit, key: 'autoFit', type: 'boolean' },
+    ];
+
+    configMap.forEach((item) => {
+      const event = item.el.type === 'checkbox' ? 'change' : 'input';
+      item.el.addEventListener(event, () => {
+        const region = state.regionEditor.getActiveRegion();
+        if (!region) return;
+        let value;
+        if (item.type === 'boolean') value = item.el.checked;
+        else if (item.type === 'map') value = item.map[item.el.value];
+        else if (item.type === 'number') value = parseFloat(item.el.value);
+        else value = item.el.value;
+        state.regionEditor.updateRegion(region.id, { config: { [item.key]: value } });
+
+        if (item.key === 'useNameList') {
+          els.regionFixedTextRow.style.display = value ? 'none' : 'flex';
+        }
+        renderPreview();
+      });
+    });
+  }
+
   // ===== Initial state =====
   updatePerfMonitor();
+  setMode('position');
 })();

@@ -64,6 +64,9 @@
           <button type="button" class="mode-btn" data-mode="pick">
             <span class="dot"></span>取色
           </button>
+          <button type="button" class="mode-btn" data-mode="region">
+            <span class="dot"></span>区域
+          </button>
           <div class="color-badge" title="当前文字颜色">
             <span id="pickedColor" class="color-swatch"></span>
             <span id="colorValue" class="color-value">#C89B5C</span>
@@ -74,9 +77,120 @@
           <canvas id="previewCanvas"></canvas>
           <div id="marker" class="marker">定位位置</div>
         </div>
-        <div class="form-row compact">
+        <div class="form-row compact" id="pointControls">
           <label class="coord">X<input type="number" id="posX" value="540"></label>
           <label class="coord">Y<input type="number" id="posY" value="640"></label>
+        </div>
+
+        <!-- Region controls -->
+        <div id="regionControls" style="display:none;">
+          <div class="region-toolbar">
+            <button type="button" id="regionCreate" class="btn-small">新建区域</button>
+            <button type="button" id="regionDelete" class="btn-small btn-danger">删除</button>
+            <button type="button" id="regionUndo" class="btn-small">撤销</button>
+            <button type="button" id="regionRedo" class="btn-small">重做</button>
+            <button type="button" id="regionSave" class="btn-small">保存配置</button>
+            <button type="button" id="regionLoad" class="btn-small">加载配置</button>
+            <input type="file" id="regionConfigInput" accept=".json" hidden>
+          </div>
+          <div id="regionList" class="region-list"></div>
+          <div id="regionConfig" class="region-config" style="display:none;">
+            <div class="form-row">
+              <label class="field full">文本内容
+                <select id="regionTextSource">
+                  <option value="name">从名单读取</option>
+                  <option value="fixed">固定文本</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row" id="regionFixedTextRow" style="display:none;">
+              <label class="field full">固定文本
+                <input type="text" id="regionFixedText" placeholder="输入固定文字">
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">字体
+                <select id="regionFontFamily">
+                  <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+                  <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
+                  <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
+                  <option value="SimSun, Songti SC, serif">宋体</option>
+                  <option value="KaiTi, Kaiti SC, serif">楷体</option>
+                  <option value="FangSong, STFangsong, serif">仿宋</option>
+                  <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+                  <option value="Georgia, Times New Roman, serif">Georgia</option>
+                  <option value="Times New Roman, Times, serif">Times New Roman</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="Tahoma, sans-serif">Tahoma</option>
+                  <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                  <option value="Courier New, monospace">Courier New</option>
+                  <option value="Impact, sans-serif">Impact</option>
+                  <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                </select>
+              </label>
+              <label class="field">颜色
+                <input type="color" id="regionColor" value="#000000">
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">不透明度
+                <input type="range" id="regionOpacity" min="0" max="1" step="0.05" value="1">
+              </label>
+              <label class="field">旋转
+                <input type="number" id="regionRotation" value="0" min="0" max="360" step="1">
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">水平对齐
+                <select id="regionAlignH">
+                  <option value="left">左对齐</option>
+                  <option value="center" selected>居中</option>
+                  <option value="right">右对齐</option>
+                </select>
+              </label>
+              <label class="field">垂直对齐
+                <select id="regionAlignV">
+                  <option value="top">顶部</option>
+                  <option value="middle" selected>居中</option>
+                  <option value="bottom">底部</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">字重
+                <input type="number" id="regionFontWeight" value="400" min="10" max="900" step="1">
+              </label>
+              <label class="field">样式
+                <select id="regionFontStyle">
+                  <option value="normal" selected>常规</option>
+                  <option value="italic">斜体</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">行高
+                <input type="number" id="regionLineHeight" value="1.2" min="0.5" max="3" step="0.1">
+              </label>
+              <label class="field">字间距
+                <input type="number" id="regionLetterSpacing" value="0" min="-10" max="100" step="1">
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field">最小字号
+                <input type="number" id="regionMinFont" value="12" min="8" max="100" step="1">
+              </label>
+              <label class="field">最大字号
+                <input type="number" id="regionMaxFont" value="300" min="12" max="500" step="1">
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="field full">
+                <input type="checkbox" id="regionAutoFit" checked> 自动适配字号
+              </label>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -105,7 +219,9 @@
           </label>
           <label class="field">字重
             <input type="number" id="fontWeight" value="100" min="10" max="900" step="1" placeholder="10-900">
+            <span class="weight-status" id="fontWeightStatus"></span>
             <span class="error-msg" id="fontWeightError"></span>
+            <span class="weight-hint" id="fontWeightHint"></span>
           </label>
           <label class="field full">字体
             <select id="fontFamily">
@@ -191,6 +307,7 @@
 
   <script src="lib/jszip.min.js"></script>
   <script src="lib/FileSaver.min.js"></script>
+  <script src="js/region-editor.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
