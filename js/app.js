@@ -7,8 +7,10 @@
     workBitmap: null,          // compressed ImageBitmap (preview / fallback)
     outputWidth: 0,
     outputHeight: 0,
+    originalWidth: 0,
+    originalHeight: 0,
     outputScale: 1,            // output / original
-    previewScale: 1,           // preview canvas / original
+    previewScale: 1,           // preview canvas / output (work image)
     customFontFace: null,
     customFontBuffer: null,
     mode: 'position',
@@ -252,6 +254,8 @@
       state.workBlob = result.blob;
       state.outputWidth = result.width;
       state.outputHeight = result.height;
+      state.originalWidth = result.originalWidth;
+      state.originalHeight = result.originalHeight;
       state.outputScale = result.width / result.originalWidth;
 
       const url = URL.createObjectURL(result.blob);
@@ -282,6 +286,8 @@
     state.workBlob = null;
     state.outputWidth = 0;
     state.outputHeight = 0;
+    state.originalWidth = 0;
+    state.originalHeight = 0;
     state.outputScale = 1;
   }
 
@@ -357,14 +363,15 @@
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const origX = Math.round(x / state.previewScale);
-    const origY = Math.round(y / state.previewScale);
+    // Convert preview canvas coordinate to work image coordinate (compressed image)
+    const workX = Math.max(0, Math.min(Math.round(x / state.previewScale), state.sourceImage.width));
+    const workY = Math.max(0, Math.min(Math.round(y / state.previewScale), state.sourceImage.height));
 
     if (state.mode === 'pick') {
       pickColor(x, y);
     } else {
-      els.posX.value = origX;
-      els.posY.value = origY;
+      els.posX.value = workX;
+      els.posY.value = workY;
       updateMarker();
     }
   });
@@ -413,6 +420,8 @@
   // ===== Marker =====
   function updateMarker() {
     if (!state.sourceImage) return;
+    // posX/posY are stored in work image coordinates (compressed image)
+    // Convert directly to preview canvas coordinate via previewScale
     const x = parseInt(els.posX.value, 10) * state.previewScale;
     const y = parseInt(els.posY.value, 10) * state.previewScale;
     const fontSize = parseInt(els.fontSize.value, 10);
@@ -511,16 +520,18 @@
 
   // ===== Generation Options =====
   function getGenerationOptions() {
-    const scale = state.outputScale;
+    // WYSIWYG based on the compressed work image:
+    // the coordinate and font size shown in the UI are exactly what will be used
+    // in the final generated image.
     return {
-      fontSize: Math.max(12, Math.round(parseInt(els.fontSize.value, 10) * scale)),
+      fontSize: Math.max(12, parseInt(els.fontSize.value, 10)),
       color: hexToRgb(els.fontColor.value),
       align: els.textAlign.value,
-      maxWidth: Math.round((parseInt(els.maxWidth.value, 10) || 0) * scale),
+      maxWidth: parseInt(els.maxWidth.value, 10) || 0,
       fontFamily: getFontFamily(),
       fontWeight: validateFontWeight(),
-      posX: Math.round(parseInt(els.posX.value, 10) * scale),
-      posY: Math.round(parseInt(els.posY.value, 10) * scale),
+      posX: parseInt(els.posX.value, 10),
+      posY: parseInt(els.posY.value, 10),
     };
   }
 
