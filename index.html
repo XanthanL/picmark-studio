@@ -3,114 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>图印工坊 - 图片文字批量生成</title>
+  <title>图印工坊 · PicMark Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="app">
+
+    <!-- ===== Hero ===== -->
     <header class="hero">
-      <div class="hero-content">
-        <div class="brand">
-          <span class="brand-mark">PM</span>
-          <div>
-            <h1>图印工坊</h1>
-            <p class="tagline">PicMark Studio · 图片文字批量生成工具</p>
-          </div>
-        </div>
-        <p class="hero-desc">上传底图，标记文字位置，导入名单，一键生成批量个性化图片。</p>
+      <div class="hero-inner">
+        <div class="hero-seal" aria-hidden="true">印</div>
+        <p class="hero-kicker">— PICMARK STUDIO</p>
+        <h1 class="hero-title">图印<br>工坊</h1>
+        <p class="hero-desc">上传底图，标记文字位置，导入名单，<br>一键生成批量个性化图片。</p>
       </div>
     </header>
 
     <main class="container">
-      <!-- 步骤1：上传底图 -->
-      <section class="card">
-        <div class="step-title">
-          <span class="step-num">1</span>
-          <h2>上传底图</h2>
+
+      <!-- ===== 01 上传底图 ===== -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-no">01</span>
+          <div class="sec-titles">
+            <h2 class="sec-title">上传底图</h2>
+            <span class="sec-sub">BASE IMAGE</span>
+          </div>
         </div>
-        <label class="drop-zone" id="dropZone">
-          <input type="file" id="templateInput" accept="image/*" hidden>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
-            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-            <path d="M21 15l-5-5L5 21"></path>
-          </svg>
-          <span class="drop-title">点击或拖拽图片至此</span>
-          <span class="drop-sub">支持 JPG、PNG、WebP</span>
-        </label>
-        <div class="form-row quality-row">
-          <label class="field full">输出质量
-            <select id="quality">
-              <option value="original">原图尺寸</option>
-              <option value="high" selected>高清（最大边 2048）</option>
-              <option value="medium">标准（最大边 1280）</option>
-              <option value="low">快速（最大边 800）</option>
-            </select>
+        <div class="sec-body">
+          <label class="drop-zone" id="dropZone">
+            <input type="file" id="templateInput" accept="image/*" hidden>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+              <rect x="3" y="3" width="18" height="18" rx="0"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="M21 15l-5-5L5 21"></path>
+            </svg>
+            <span class="drop-title">点击或拖拽图片至此</span>
+            <span class="drop-sub">JPG · PNG · WEBP</span>
           </label>
+          <div class="form-row quality-row">
+            <label class="field full">输出质量
+              <select id="quality">
+                <option value="original">原图尺寸</option>
+                <option value="high" selected>高清（最大边 2048）</option>
+                <option value="medium">标准（最大边 1280）</option>
+                <option value="low">快速（最大边 800）</option>
+              </select>
+            </label>
+          </div>
+          <div id="imageInfo" class="file-info"></div>
         </div>
-        <div id="imageInfo" class="file-info"></div>
       </section>
 
-      <!-- 步骤2：点击定位 / 取色 -->
-      <section class="card">
-        <div class="step-title">
-          <span class="step-num">2</span>
-          <h2>定位与取色</h2>
-        </div>
-        <div class="mode-switch">
-          <button type="button" class="mode-btn active" data-mode="position">
-            <span class="dot"></span>定位
-          </button>
-          <button type="button" class="mode-btn" data-mode="pick">
-            <span class="dot"></span>取色
-          </button>
-          <button type="button" class="mode-btn" data-mode="region">
-            <span class="dot"></span>区域
-          </button>
-          <div class="color-badge" title="当前文字颜色">
-            <span id="pickedColor" class="color-swatch"></span>
-            <span id="colorValue" class="color-value">#C89B5C</span>
+      <!-- ===== 02 定位与取色 ===== -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-no">02</span>
+          <div class="sec-titles">
+            <h2 class="sec-title">定位与取色</h2>
+            <span class="sec-sub">POSITION · COLOR · REGION</span>
           </div>
         </div>
-        <p class="hint" id="modeHint">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
-        <div class="canvas-wrapper" id="canvasWrapper">
-          <canvas id="previewCanvas"></canvas>
-          <div id="marker" class="marker">定位位置</div>
-        </div>
-        <div class="form-row compact" id="pointControls">
-          <label class="coord">X<input type="number" id="posX" value="540"></label>
-          <label class="coord">Y<input type="number" id="posY" value="640"></label>
-        </div>
+        <div class="sec-body">
+          <div class="mode-switch">
+            <button type="button" class="mode-btn active" data-mode="position">定位</button>
+            <button type="button" class="mode-btn" data-mode="pick">取色</button>
+            <button type="button" class="mode-btn" data-mode="region">区域</button>
+            <div class="color-badge" title="当前文字颜色">
+              <span id="pickedColor" class="color-swatch"></span>
+              <span id="colorValue" class="color-value">#C89B5C</span>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
+          <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="previewCanvas"></canvas>
+            <div id="marker" class="marker">定位位置</div>
+          </div>
+          <div class="form-row compact" id="pointControls">
+            <label class="coord">X<input type="number" id="posX" value="540"></label>
+            <label class="coord">Y<input type="number" id="posY" value="640"></label>
+          </div>
 
-        <!-- Region controls -->
-        <div id="regionControls" style="display:none;">
-          <div class="region-toolbar">
-            <button type="button" id="regionCreate" class="btn-small">新建区域</button>
-            <button type="button" id="regionDelete" class="btn-small btn-danger">删除</button>
-            <button type="button" id="regionUndo" class="btn-small">撤销</button>
-            <button type="button" id="regionRedo" class="btn-small">重做</button>
-            <button type="button" id="regionSave" class="btn-small">保存配置</button>
-            <button type="button" id="regionLoad" class="btn-small">加载配置</button>
-            <input type="file" id="regionConfigInput" accept=".json" hidden>
+          <!-- Region controls -->
+          <div id="regionControls" style="display:none;">
+            <div class="region-toolbar">
+              <button type="button" id="regionCreate" class="btn-small">新建区域</button>
+              <button type="button" id="regionDelete" class="btn-small btn-danger">删除</button>
+              <button type="button" id="regionUndo" class="btn-small">撤销</button>
+              <button type="button" id="regionRedo" class="btn-small">重做</button>
+              <button type="button" id="regionSave" class="btn-small">保存配置</button>
+              <button type="button" id="regionLoad" class="btn-small">加载配置</button>
+              <input type="file" id="regionConfigInput" accept=".json" hidden>
+            </div>
+            <div id="regionList" class="region-list"></div>
+            <div id="regionConfig" class="region-config" style="display:none;">
+              <div class="form-row">
+                <label class="field full">文本内容
+                  <select id="regionTextSource">
+                    <option value="name">从名单读取</option>
+                    <option value="fixed">固定文本</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row" id="regionFixedTextRow" style="display:none;">
+                <label class="field full">固定文本
+                  <input type="text" id="regionFixedText" placeholder="输入固定文字">
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">字体
+                  <select id="regionFontFamily">
+                    <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+                    <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
+                    <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
+                    <option value="SimSun, Songti SC, serif">宋体</option>
+                    <option value="KaiTi, Kaiti SC, serif">楷体</option>
+                    <option value="FangSong, STFangsong, serif">仿宋</option>
+                    <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+                    <option value="Georgia, Times New Roman, serif">Georgia</option>
+                    <option value="Times New Roman, Times, serif">Times New Roman</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="Tahoma, sans-serif">Tahoma</option>
+                    <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                    <option value="Courier New, monospace">Courier New</option>
+                    <option value="Impact, sans-serif">Impact</option>
+                    <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                  </select>
+                </label>
+                <label class="field">颜色
+                  <input type="color" id="regionColor" value="#000000">
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">不透明度
+                  <input type="range" id="regionOpacity" min="0" max="1" step="0.05" value="1">
+                </label>
+                <label class="field">旋转
+                  <input type="number" id="regionRotation" value="0" min="0" max="360" step="1">
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">水平对齐
+                  <select id="regionAlignH">
+                    <option value="left">左对齐</option>
+                    <option value="center" selected>居中</option>
+                    <option value="right">右对齐</option>
+                  </select>
+                </label>
+                <label class="field">垂直对齐
+                  <select id="regionAlignV">
+                    <option value="top">顶部</option>
+                    <option value="middle" selected>居中</option>
+                    <option value="bottom">底部</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">字重
+                  <input type="number" id="regionFontWeight" value="400" min="10" max="900" step="1">
+                </label>
+                <label class="field">样式
+                  <select id="regionFontStyle">
+                    <option value="normal" selected>常规</option>
+                    <option value="italic">斜体</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">行高
+                  <input type="number" id="regionLineHeight" value="1.2" min="0.5" max="3" step="0.1">
+                </label>
+                <label class="field">字间距
+                  <input type="number" id="regionLetterSpacing" value="0" min="-10" max="100" step="1">
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field">最小字号
+                  <input type="number" id="regionMinFont" value="12" min="8" max="100" step="1">
+                </label>
+                <label class="field">最大字号
+                  <input type="number" id="regionMaxFont" value="300" min="12" max="500" step="1">
+                </label>
+              </div>
+              <div class="form-row">
+                <label class="field full">
+                  <input type="checkbox" id="regionAutoFit" checked> 自动适配字号
+                </label>
+              </div>
+            </div>
           </div>
-          <div id="regionList" class="region-list"></div>
-          <div id="regionConfig" class="region-config" style="display:none;">
-            <div class="form-row">
-              <label class="field full">文本内容
-                <select id="regionTextSource">
-                  <option value="name">从名单读取</option>
-                  <option value="fixed">固定文本</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row" id="regionFixedTextRow" style="display:none;">
-              <label class="field full">固定文本
-                <input type="text" id="regionFixedText" placeholder="输入固定文字">
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">字体
-                <select id="regionFontFamily">
+        </div>
+      </section>
+
+      <!-- ===== 03 文字样式 ===== -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-no">03</span>
+          <div class="sec-titles">
+            <h2 class="sec-title">文字样式</h2>
+            <span class="sec-sub">TYPOGRAPHY</span>
+          </div>
+        </div>
+        <div class="sec-body">
+          <div class="form-grid">
+            <label class="field">字号
+              <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
+            </label>
+            <label class="field">颜色
+              <input type="color" id="fontColor" value="#C89B5C">
+            </label>
+            <label class="field">对齐
+              <select id="textAlign">
+                <option value="left">左对齐</option>
+                <option value="center" selected>居中</option>
+                <option value="right">右对齐</option>
+              </select>
+            </label>
+            <label class="field">最大宽度
+              <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
+            </label>
+            <label class="field">字重
+              <input type="number" id="fontWeight" value="100" min="10" max="900" step="1" placeholder="10-900">
+              <span class="weight-status" id="fontWeightStatus"></span>
+              <span class="error-msg" id="fontWeightError"></span>
+              <span class="weight-hint" id="fontWeightHint"></span>
+            </label>
+            <label class="field full">字体
+              <select id="fontFamily">
+                <optgroup label="中文字体">
                   <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
                   <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
                   <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
@@ -118,6 +243,12 @@
                   <option value="KaiTi, Kaiti SC, serif">楷体</option>
                   <option value="FangSong, STFangsong, serif">仿宋</option>
                   <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
+                  <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
+                  <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
+                  <option value="STLiti, LiSu, serif">华文隶书</option>
+                  <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
+                </optgroup>
+                <optgroup label="英文字体">
                   <option value="Arial, sans-serif">Arial</option>
                   <option value="Helvetica, Arial, sans-serif">Helvetica</option>
                   <option value="Georgia, Times New Roman, serif">Georgia</option>
@@ -128,181 +259,74 @@
                   <option value="Courier New, monospace">Courier New</option>
                   <option value="Impact, sans-serif">Impact</option>
                   <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-                </select>
-              </label>
-              <label class="field">颜色
-                <input type="color" id="regionColor" value="#000000">
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">不透明度
-                <input type="range" id="regionOpacity" min="0" max="1" step="0.05" value="1">
-              </label>
-              <label class="field">旋转
-                <input type="number" id="regionRotation" value="0" min="0" max="360" step="1">
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">水平对齐
-                <select id="regionAlignH">
-                  <option value="left">左对齐</option>
-                  <option value="center" selected>居中</option>
-                  <option value="right">右对齐</option>
-                </select>
-              </label>
-              <label class="field">垂直对齐
-                <select id="regionAlignV">
-                  <option value="top">顶部</option>
-                  <option value="middle" selected>居中</option>
-                  <option value="bottom">底部</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">字重
-                <input type="number" id="regionFontWeight" value="400" min="10" max="900" step="1">
-              </label>
-              <label class="field">样式
-                <select id="regionFontStyle">
-                  <option value="normal" selected>常规</option>
-                  <option value="italic">斜体</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">行高
-                <input type="number" id="regionLineHeight" value="1.2" min="0.5" max="3" step="0.1">
-              </label>
-              <label class="field">字间距
-                <input type="number" id="regionLetterSpacing" value="0" min="-10" max="100" step="1">
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field">最小字号
-                <input type="number" id="regionMinFont" value="12" min="8" max="100" step="1">
-              </label>
-              <label class="field">最大字号
-                <input type="number" id="regionMaxFont" value="300" min="12" max="500" step="1">
-              </label>
-            </div>
-            <div class="form-row">
-              <label class="field full">
-                <input type="checkbox" id="regionAutoFit" checked> 自动适配字号
-              </label>
-            </div>
+                </optgroup>
+                <optgroup label="其他">
+                  <option value="sans-serif">系统默认</option>
+                  <option value="custom">自定义字体</option>
+                </optgroup>
+              </select>
+            </label>
+            <label class="field full custom-font" style="display:none;">
+              <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
+              <span class="secondary-btn">上传字体文件</span>
+              <span id="fontName" class="file-info"></span>
+            </label>
           </div>
         </div>
       </section>
 
-      <!-- 步骤3：文字样式 -->
-      <section class="card">
-        <div class="step-title">
-          <span class="step-num">3</span>
-          <h2>文字样式</h2>
+      <!-- ===== 04 导入名单 ===== -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-no">04</span>
+          <div class="sec-titles">
+            <h2 class="sec-title">导入名单</h2>
+            <span class="sec-sub">NAME LIST</span>
+          </div>
         </div>
-        <div class="form-grid">
-          <label class="field">字号
-            <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
-          </label>
-          <label class="field">颜色
-            <input type="color" id="fontColor" value="#C89B5C">
-          </label>
-          <label class="field">对齐
-            <select id="textAlign">
-              <option value="left">左对齐</option>
-              <option value="center" selected>居中</option>
-              <option value="right">右对齐</option>
-            </select>
-          </label>
-          <label class="field">最大宽度
-            <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
-          </label>
-          <label class="field">字重
-            <input type="number" id="fontWeight" value="100" min="10" max="900" step="1" placeholder="10-900">
-            <span class="weight-status" id="fontWeightStatus"></span>
-            <span class="error-msg" id="fontWeightError"></span>
-            <span class="weight-hint" id="fontWeightHint"></span>
-          </label>
-          <label class="field full">字体
-            <select id="fontFamily">
-              <optgroup label="中文字体">
-                <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
-                <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
-                <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
-                <option value="SimSun, Songti SC, serif">宋体</option>
-                <option value="KaiTi, Kaiti SC, serif">楷体</option>
-                <option value="FangSong, STFangsong, serif">仿宋</option>
-                <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
-                <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
-                <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
-                <option value="STLiti, LiSu, serif">华文隶书</option>
-                <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
-              </optgroup>
-              <optgroup label="英文字体">
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Helvetica, Arial, sans-serif">Helvetica</option>
-                <option value="Georgia, Times New Roman, serif">Georgia</option>
-                <option value="Times New Roman, Times, serif">Times New Roman</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="Tahoma, sans-serif">Tahoma</option>
-                <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                <option value="Courier New, monospace">Courier New</option>
-                <option value="Impact, sans-serif">Impact</option>
-                <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-              </optgroup>
-              <optgroup label="其他">
-                <option value="sans-serif">系统默认</option>
-                <option value="custom">自定义字体</option>
-              </optgroup>
-            </select>
-          </label>
-          <label class="field full custom-font" style="display:none;">
-            <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
-            <span class="secondary-btn">上传字体文件</span>
-            <span id="fontName" class="file-info"></span>
+        <div class="sec-body">
+          <p class="hint">每行一个名字；也可直接上传 .txt 或 .csv 文件</p>
+          <textarea id="namesInput" rows="5" placeholder="张三&#10;李四&#10;王五"></textarea>
+          <label class="secondary-btn">
+            <input type="file" id="namesFileInput" accept=".txt,.csv" hidden>
+            <span>上传名单文件</span>
           </label>
         </div>
       </section>
 
-      <!-- 步骤4：名单 -->
-      <section class="card">
-        <div class="step-title">
-          <span class="step-num">4</span>
-          <h2>导入名单</h2>
+      <!-- ===== 05 批量生成 ===== -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-no">05</span>
+          <div class="sec-titles">
+            <h2 class="sec-title">批量生成</h2>
+            <span class="sec-sub">GENERATE · EXPORT</span>
+          </div>
         </div>
-        <p class="hint">每行一个名字；也可直接上传 .txt 或 .csv 文件</p>
-        <textarea id="namesInput" rows="5" placeholder="张三&#10;李四&#10;王五"></textarea>
-        <label class="secondary-btn">
-          <input type="file" id="namesFileInput" accept=".txt,.csv" hidden>
-          <span>上传名单文件</span>
-        </label>
+        <div class="sec-body">
+          <div class="perf-panel" id="perfPanel" style="display:none;">
+            <div class="perf-item"><span>输出尺寸</span><b id="outputSize">-</b></div>
+            <div class="perf-item"><span>处理模式</span><b id="perfMode">-</b></div>
+            <div class="perf-item"><span>内存占用</span><b id="memValue">-</b></div>
+          </div>
+          <div class="perf-warning" id="perfWarning"></div>
+          <div class="progress" id="progressBox" style="display:none;">
+            <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+            <span id="progressText">0%</span>
+          </div>
+          <button id="generateBtn" class="primary-btn" disabled>开始生成并下载</button>
+          <div id="previewList" class="preview-list"></div>
+        </div>
       </section>
 
-      <!-- 步骤5：生成 -->
-      <section class="card">
-        <div class="step-title">
-          <span class="step-num">5</span>
-          <h2>批量生成</h2>
-        </div>
-        <div class="perf-panel" id="perfPanel" style="display:none;">
-          <div class="perf-item"><span>输出尺寸</span><b id="outputSize">-</b></div>
-          <div class="perf-item"><span>处理模式</span><b id="perfMode">-</b></div>
-          <div class="perf-item"><span>内存占用</span><b id="memValue">-</b></div>
-        </div>
-        <div class="perf-warning" id="perfWarning"></div>
-        <div class="progress" id="progressBox" style="display:none;">
-          <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-          <span id="progressText">0%</span>
-        </div>
-        <button id="generateBtn" class="primary-btn" disabled>开始生成并下载</button>
-        <div id="previewList" class="preview-list"></div>
-      </section>
     </main>
 
     <footer class="footer">
-      <p>图印工坊 · 批量图片制作</p>
+      <div class="footer-rule"></div>
+      <p class="footer-title">图印工坊 · 批量图片制作</p>
       <p class="signature">by XanthanL</p>
     </footer>
+
   </div>
 
   <script src="lib/jszip.min.js"></script>
