@@ -15,6 +15,7 @@
     customFontBuffer: null,
     mode: 'position',
     regionEditor: null,
+    nameColumns: ['姓名'],
     isGenerating: false,
     perf: {
       startTime: 0,
@@ -73,6 +74,8 @@
     regionList: document.getElementById('regionList'),
     regionConfig: document.getElementById('regionConfig'),
     regionTextSource: document.getElementById('regionTextSource'),
+    regionDataColumn: document.getElementById('regionDataColumn'),
+    regionDataColumnRow: document.getElementById('regionDataColumnRow'),
     regionFixedTextRow: document.getElementById('regionFixedTextRow'),
     regionFixedText: document.getElementById('regionFixedText'),
     regionFontFamily: document.getElementById('regionFontFamily'),
@@ -175,8 +178,8 @@
   }
 
   function getQualityLabel(quality) {
-    const map = { original: '原图', high: '高清', medium: '标准', low: '快速' };
-    return map[quality] || '高清';
+    const map = { original: I18n.t('quality.label.original'), high: I18n.t('quality.label.high'), medium: I18n.t('quality.label.medium'), low: I18n.t('quality.label.low') };
+    return map[quality] || I18n.t('quality.label.high');
   }
 
   // ===== Performance Monitor =====
@@ -184,7 +187,7 @@
     if (!els.perfPanel) return;
 
     els.outputSize.textContent = `${state.outputWidth} × ${state.outputHeight}`;
-    els.perfMode.textContent = state.perf.workerSupported ? 'Worker 异步' : '主线程分帧';
+    els.perfMode.textContent = state.perf.workerSupported ? I18n.t('perf.mode.worker') : I18n.t('perf.mode.main');
 
     if (performance.memory) {
       const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
@@ -192,7 +195,7 @@
       els.memValue.textContent = `${used} / ${limit} MB`;
 
       if (performance.memory.usedJSHeapSize > 0.75 * performance.memory.jsHeapSizeLimit) {
-        els.perfWarning.textContent = '内存占用较高，建议降低输出质量或减少名单数量';
+        els.perfWarning.textContent = I18n.t('perf.memoryWarning');
       } else {
         els.perfWarning.textContent = '';
       }
@@ -261,7 +264,7 @@
 
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error('图片加载失败'));
+        reject(new Error(I18n.t('error.imageLoad')));
       };
 
       img.src = url;
@@ -292,14 +295,14 @@
       img.onload = async () => {
         state.sourceImage = img;
         state.workBitmap = await createImageBitmap(result.blob);
-        els.imageInfo.textContent = `${file.name} · 原图 ${result.originalWidth} × ${result.originalHeight} · 输出 ${result.width} × ${result.height} · ${getQualityLabel(quality)}`;
+        els.imageInfo.textContent = I18n.t('imageInfo.template', { name: file.name, ow: result.originalWidth, oh: result.originalHeight, w: result.width, h: result.height, q: getQualityLabel(quality) });
         renderPreview();
         updateGenerateBtn();
         startPerfMonitor();
       };
       img.src = url;
     } catch (err) {
-      alert('图片处理失败: ' + err.message);
+      alert(I18n.t('error.imageProcess', { msg: err.message }));
     }
   }
 
@@ -370,7 +373,7 @@
       // Draw text preview inside regions
       if (state.mode === 'region') {
         const active = state.regionEditor.getActiveRegion();
-        const sample = active ? getRegionPreviewText(active) : '预览文字';
+        const sample = active ? getRegionPreviewText(active) : I18n.t('preview.text');
         state.regionEditor.getRegions().forEach((region) => {
           const text = getRegionPreviewText(region) || sample;
           state.regionEditor.fitAndRender(ctx, text, region);
@@ -385,20 +388,54 @@
     updateMarker();
   }
 
-  function getNames() {
-    return els.namesInput.value
-      .split(/\r?\n/)
-      .map((n) => n.trim())
-      .filter(Boolean);
+  // 解析名单：支持纯文本（每行一个名字）和 CSV（首行表头，逗号分隔）
+  function parseNameData() {
+    var raw = els.namesInput.value.trim();
+    if (!raw) return { rows: [], columns: ['姓名'] };
+
+    var lines = raw.split(/\r?\n/).filter(function (l) { return l.trim().length > 0; });
+    if (lines.length === 0) return { rows: [], columns: ['姓名'] };
+
+    var delim = lines[0].indexOf('\t') >= 0 ? '\t' : (lines[0].indexOf(',') >= 0 ? ',' : null);
+
+    var isCSV = false;
+    if (delim && lines.length >= 2) {
+      var colCount1 = lines[0].split(delim).length;
+      var colCount2 = lines[1].split(delim).length;
+      if (colCount1 >= 2 && colCount1 === colCount2) isCSV = true;
+    }
+
+    if (!isCSV) {
+      return {
+        rows: lines.map(function (l) { return { '姓名': l.trim() }; }),
+        columns: ['姓名']
+      };
+    }
+
+    var headers = lines[0].split(delim).map(function (h) { return h.trim(); });
+    var rows = [];
+    for (var i = 1; i < lines.length; i++) {
+      var values = lines[i].split(delim);
+      var row = {};
+      headers.forEach(function (h, idx) { row[h] = (values[idx] || '').trim(); });
+      rows.push(row);
+    }
+    return { rows: rows, columns: headers };
   }
 
   function getPreviewText() {
-    return getNames()[0] || '定位位置';
+    var data = parseNameData();
+    if (data.rows.length === 0) return I18n.t('marker.text');
+    var firstCol = data.columns[0];
+    return data.rows[0][firstCol] || I18n.t('marker.text');
   }
 
   function getRegionPreviewText(region) {
     if (!region.config.useNameList) return region.config.fixedText || '';
-    return getPreviewText();
+    var data = parseNameData();
+    if (data.rows.length === 0) return I18n.t('preview.text');
+    var col = region.config.dataColumn || data.columns[0];
+    return data.rows[0][col] || '';
   }
 
   window.addEventListener('resize', () => {
@@ -412,21 +449,21 @@
     document.querySelector(`.mode-btn[data-mode="${mode}"]`)?.classList.add('active');
 
     if (mode === 'pick') {
-      els.modeHint.textContent = '点击图片任意位置，即可提取该位置颜色并应用到文字';
+      els.modeHint.textContent = I18n.t('modeHint.pick');
       els.canvas.classList.add('pick-mode');
       els.pointControls.style.display = 'flex';
       els.regionControls.style.display = 'none';
       els.marker.style.display = 'none';
       if (state.regionEditor) state.regionEditor.setMode('select');
     } else if (mode === 'region') {
-      els.modeHint.textContent = '拖拽绘制矩形区域，文字将自动适配区域大小；点击已有区域可选中并调整';
+      els.modeHint.textContent = I18n.t('modeHint.region');
       els.canvas.classList.remove('pick-mode');
       els.pointControls.style.display = 'none';
       els.regionControls.style.display = 'block';
       els.marker.style.display = 'none';
       initRegionEditor();
     } else {
-      els.modeHint.textContent = '点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览';
+      els.modeHint.textContent = I18n.t('modeHint.position');
       els.canvas.classList.remove('pick-mode');
       els.pointControls.style.display = 'flex';
       els.regionControls.style.display = 'none';
@@ -474,15 +511,15 @@
 
   // ===== Font Weight Validation =====
   function getWeightLabel(value) {
-    if (value <= 100) return '极细';
-    if (value <= 200) return '特细';
-    if (value <= 300) return '细';
-    if (value <= 400) return '常规偏细';
-    if (value <= 500) return '常规';
-    if (value <= 600) return '半粗';
-    if (value <= 700) return '粗';
-    if (value <= 800) return '特粗';
-    return '黑';
+    if (value <= 100) return I18n.t('weight.100');
+    if (value <= 200) return I18n.t('weight.200');
+    if (value <= 300) return I18n.t('weight.300');
+    if (value <= 400) return I18n.t('weight.400');
+    if (value <= 500) return I18n.t('weight.500');
+    if (value <= 600) return I18n.t('weight.600');
+    if (value <= 700) return I18n.t('weight.700');
+    if (value <= 800) return I18n.t('weight.800');
+    return I18n.t('weight.900');
   }
 
   function checkWeightSupport(value, fontFamily) {
@@ -508,7 +545,7 @@
     const supported = checkWeightSupport(value, family);
 
     if (!supported) {
-      hintEl.textContent = `提示：当前字体可能没有 ${value} 字重，浏览器会近似到最接近的可用字重。如需精确控制，可上传可变字体文件。`;
+      hintEl.textContent = I18n.t('weight.hint', { value: value });
     } else {
       hintEl.textContent = '';
     }
@@ -577,10 +614,10 @@
         document.fonts.add(fontFace);
         state.customFontFace = fontFamily;
         state.customFontBuffer = buffer;
-        els.fontName.textContent = `已加载: ${file.name}`;
+        els.fontName.textContent = I18n.t('font.loaded', { name: file.name });
         if (state.sourceImage) renderPreview();
       } catch (err) {
-        alert('字体加载失败: ' + err.message);
+        alert(I18n.t('font.loadFail', { msg: err.message }));
       }
     };
     reader.readAsArrayBuffer(file);
@@ -592,17 +629,9 @@
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target.result;
-      if (file.name.toLowerCase().endsWith('.csv')) {
-        els.namesInput.value = text
-          .split(/\r?\n/)
-          .map((line) => line.split(',')[0].trim())
-          .filter(Boolean)
-          .join('\n');
-      } else {
-        els.namesInput.value = text;
-      }
+      els.namesInput.value = ev.target.result;
       updateGenerateBtn();
+      refreshNameColumns();
       if (state.sourceImage) renderPreview();
     };
     reader.readAsText(file);
@@ -610,8 +639,25 @@
 
   els.namesInput.addEventListener('input', () => {
     updateGenerateBtn();
+    refreshNameColumns();
     if (state.sourceImage) renderPreview();
   });
+
+  // 刷新数据列下拉选项
+  function refreshNameColumns() {
+    var data = parseNameData();
+    state.nameColumns = data.columns;
+    var sel = els.regionDataColumn;
+    var current = sel.value;
+    sel.innerHTML = '';
+    data.columns.forEach(function (col) {
+      var opt = document.createElement('option');
+      opt.value = col;
+      opt.textContent = col;
+      sel.appendChild(opt);
+    });
+    if (data.columns.indexOf(current) >= 0) sel.value = current;
+  }
 
   function updateGenerateBtn() {
     const hasImage = !!state.sourceImage;
@@ -764,16 +810,23 @@
     });
   }
 
-  function drawRegions(c, name) {
+  function drawRegions(c, row) {
     if (!state.regionEditor) return;
+    var data = parseNameData();
     state.regionEditor.getRegions().forEach((region) => {
-      const text = region.config.useNameList ? name : (region.config.fixedText || '');
+      var text;
+      if (region.config.useNameList) {
+        var col = region.config.dataColumn || data.columns[0];
+        text = row[col] || '';
+      } else {
+        text = region.config.fixedText || '';
+      }
       if (text) state.regionEditor.fitAndRender(c, text, region);
     });
   }
 
   // ===== Main Thread Fallback =====
-  async function generateOneMainThread(name, options) {
+  async function generateOneMainThread(row, nameText, options) {
     return new Promise((resolve) => {
       // Yield to main thread to keep UI responsive, even when tab is backgrounded
       setTimeout(() => {
@@ -785,15 +838,15 @@
         c.drawImage(state.workBitmap, 0, 0, state.outputWidth, state.outputHeight);
 
         if (state.regionEditor && state.regionEditor.getRegions().length > 0) {
-          drawRegions(c, name);
+          drawRegions(c, row);
         } else {
-          drawPointText(c, name, options);
+          drawPointText(c, nameText, options);
         }
 
         canvas.toBlob((blob) => {
           const reader = new FileReader();
           reader.onload = () => {
-            resolve({ blob, dataUrl: reader.result, text: name, width: state.outputWidth, height: state.outputHeight });
+            resolve({ blob, dataUrl: reader.result, text: nameText, width: state.outputWidth, height: state.outputHeight });
           };
           reader.readAsDataURL(blob);
         }, 'image/png');
@@ -805,17 +858,18 @@
   els.generateBtn.addEventListener('click', async () => {
     if (state.isGenerating) return;
 
-    const names = els.namesInput.value
-      .split(/\r?\n/)
-      .map((n) => n.trim())
-      .filter(Boolean);
+    const nameData = parseNameData();
+    const rows = nameData.rows;
 
-    if (names.length === 0) return;
+    if (rows.length === 0) return;
+
+    // 更新列信息供区域配置使用
+    state.nameColumns = nameData.columns;
 
     // Memory safety check
-    const estimatedBytes = state.outputWidth * state.outputHeight * 4 * names.length;
+    const estimatedBytes = state.outputWidth * state.outputHeight * 4 * rows.length;
     if (estimatedBytes > 1.5 * 1024 * 1024 * 1024) {
-      const confirmMsg = `预计内存占用较大（约 ${(estimatedBytes / 1024 / 1024).toFixed(0)} MB），建议降低输出质量或减少名单数量。是否继续？`;
+      const confirmMsg = I18n.t('confirm.memory', { mb: (estimatedBytes / 1024 / 1024).toFixed(0) });
       if (!confirm(confirmMsg)) return;
     }
 
@@ -832,8 +886,9 @@
 
     try {
       const zip = new JSZip();
-      const total = names.length;
+      const total = rows.length;
       const options = getGenerationOptions();
+      const firstCol = nameData.columns[0];
 
       console.log('[PicMark] Generation options:', options);
       console.log('[PicMark] Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
@@ -853,28 +908,29 @@
       }
 
       for (let i = 0; i < total; i++) {
-        const name = names[i];
+        const row = rows[i];
+        const nameText = row[firstCol] || ('row_' + (i + 1));
         let result;
 
         try {
           if (workerInstance) {
-            result = await generateOneWithWorker(workerInstance, name, i);
+            result = await generateOneWithWorker(workerInstance, nameText, i);
           } else {
-            result = await generateOneMainThread(name, options);
+            result = await generateOneMainThread(row, nameText, options);
           }
         } catch (err) {
-          console.error('[PicMark] Generation error for', name, ':', err.message);
+          console.error('[PicMark] Generation error for', nameText, ':', err.message);
           // Fallback to main thread on worker error
-          result = await generateOneMainThread(name, options);
+          result = await generateOneMainThread(row, nameText, options);
         }
 
-        const safeName = name.replace(/[\\/:*?"<>|]/g, '_');
+        const safeName = nameText.replace(/[\\/:*?"<>|]/g, '_');
         zip.file(`${safeName}.png`, result.blob);
 
         if (i < 9) {
           const thumb = document.createElement('img');
           thumb.src = result.dataUrl;
-          thumb.alt = name;
+          thumb.alt = nameText;
           els.previewList.appendChild(thumb);
         }
 
@@ -891,20 +947,20 @@
 
       const content = await zip.generateAsync({ type: 'blob' });
       const timestamp = formatTimestamp(new Date());
-      saveAs(content, `图印工坊_批量生成_${timestamp}.zip`);
+      saveAs(content, I18n.t('generate.zipName', { timestamp: timestamp }) + '.zip');
 
       const elapsed = ((performance.now() - state.perf.startTime) / 1000).toFixed(1);
-      els.perfWarning.textContent = `生成完成，耗时 ${elapsed} 秒`;
+      els.perfWarning.textContent = I18n.t('generate.complete', { sec: elapsed });
       console.log('[PicMark] Generation completed in', elapsed, 'seconds');
     } catch (err) {
       console.error('[PicMark] Batch generation failed:', err);
-      alert('生成失败: ' + err.message);
-      els.perfWarning.textContent = '生成失败: ' + err.message;
+      alert(I18n.t('error.generate', { msg: err.message }));
+      els.perfWarning.textContent = I18n.t('error.generate', { msg: err.message });
       terminateWorker();
     }
 
     state.isGenerating = false;
-    els.generateBtn.textContent = '重新生成并下载';
+    els.generateBtn.textContent = I18n.t('generate.btn.again');
     updateGenerateBtn();
     updatePerfMonitor();
   });
@@ -951,7 +1007,7 @@
     regions.forEach((r, idx) => {
       const item = document.createElement('div');
       item.className = 'region-item' + (r.id === state.regionEditor.activeId ? ' active' : '');
-      item.innerHTML = `<span>区域 ${idx + 1} · ${r.width}×${r.height}</span><span>${r.config.useNameList ? '名单' : '固定'}</span>`;
+      item.innerHTML = `<span>${I18n.t('region.label')} ${idx + 1} · ${r.width}×${r.height}</span><span>${r.config.useNameList ? (r.config.dataColumn || state.nameColumns[0] || I18n.t('region.label')) : I18n.t('region.fixed')}</span>`;
       item.addEventListener('click', () => state.regionEditor.setActive(r.id));
       els.regionList.appendChild(item);
     });
@@ -965,7 +1021,19 @@
     if (!region) return;
     const cfg = region.config;
     els.regionTextSource.value = cfg.useNameList ? 'name' : 'fixed';
+    els.regionDataColumnRow.style.display = cfg.useNameList ? 'flex' : 'none';
     els.regionFixedTextRow.style.display = cfg.useNameList ? 'none' : 'flex';
+    if (cfg.useNameList) {
+      var cols = state.nameColumns;
+      els.regionDataColumn.innerHTML = '';
+      cols.forEach(function (col) {
+        var opt = document.createElement('option');
+        opt.value = col;
+        opt.textContent = col;
+        els.regionDataColumn.appendChild(opt);
+      });
+      els.regionDataColumn.value = cfg.dataColumn && cols.indexOf(cfg.dataColumn) >= 0 ? cfg.dataColumn : cols[0];
+    }
     els.regionFixedText.value = cfg.fixedText || '';
     els.regionFontFamily.value = cfg.fontFamily;
     els.regionColor.value = cfg.color;
@@ -997,14 +1065,14 @@
       if (isNaN(idx)) return;
       var preset = presets[idx];
       state.regionEditor.applyPreset(preset);
-      els.modeHint.textContent = '已套用「' + preset.name + '」预设，拖拽区域可微调位置';
+      els.modeHint.textContent = I18n.t('modeHint.preset', { name: preset.name });
       els.regionPreset.value = '';
       renderPreview();
     });
 
     els.regionCreate.addEventListener('click', () => {
       state.regionEditor.setMode('create');
-      els.modeHint.textContent = '在图片上拖拽绘制一个矩形区域';
+      els.modeHint.textContent = I18n.t('modeHint.create');
     });
 
     els.regionDelete.addEventListener('click', () => {
@@ -1034,6 +1102,7 @@
 
     const configMap = [
       { el: els.regionTextSource, key: 'useNameList', type: 'map', map: { name: true, fixed: false } },
+      { el: els.regionDataColumn, key: 'dataColumn', type: 'string' },
       { el: els.regionFixedText, key: 'fixedText', type: 'string' },
       { el: els.regionFontFamily, key: 'fontFamily', type: 'string' },
       { el: els.regionColor, key: 'color', type: 'string' },
@@ -1063,6 +1132,7 @@
         state.regionEditor.updateRegion(region.id, { config: { [item.key]: value } });
 
         if (item.key === 'useNameList') {
+          els.regionDataColumnRow.style.display = value ? 'flex' : 'none';
           els.regionFixedTextRow.style.display = value ? 'none' : 'flex';
         }
         renderPreview();
@@ -1071,6 +1141,15 @@
   }
 
   // ===== Initial state =====
+  I18n.apply();
   updatePerfMonitor();
   setMode('position');
+
+  // 语言切换后重新渲染预览
+  document.querySelector('.lang-toggle')?.addEventListener('click', function () {
+    setTimeout(function () {
+      if (state.sourceImage) renderPreview();
+      if (state.regionEditor) renderRegionList();
+    }, 50);
+  });
 })();
