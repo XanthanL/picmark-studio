@@ -299,6 +299,11 @@
         renderPreview();
         updateGenerateBtn();
         startPerfMonitor();
+        // 若当前处于区域模式，上传底图后初始化区域编辑器并更新提示
+        if (state.mode === 'region') {
+          initRegionEditor();
+          if (state.regionEditor) els.modeHint.textContent = I18n.t('modeHint.region');
+        }
       };
       img.src = url;
     } catch (err) {
@@ -456,12 +461,12 @@
       els.marker.style.display = 'none';
       if (state.regionEditor) state.regionEditor.setMode('select');
     } else if (mode === 'region') {
-      els.modeHint.textContent = I18n.t('modeHint.region');
       els.canvas.classList.remove('pick-mode');
       els.pointControls.style.display = 'none';
       els.regionControls.style.display = 'block';
       els.marker.style.display = 'none';
       initRegionEditor();
+      els.modeHint.textContent = state.regionEditor ? I18n.t('modeHint.region') : I18n.t('region.needImage');
     } else {
       els.modeHint.textContent = I18n.t('modeHint.position');
       els.canvas.classList.remove('pick-mode');
@@ -996,7 +1001,6 @@
       },
     });
 
-    bindRegionConfigEvents();
     renderRegionList();
   }
 
@@ -1051,8 +1055,11 @@
   }
 
   function bindRegionConfigEvents() {
-    // 填充预设下拉
+    // 填充预设下拉（仅保留首项占位，避免重复填充）
     var presets = RegionEditor.getPresets();
+    while (els.regionPreset.options.length > 1) {
+      els.regionPreset.remove(1);
+    }
     presets.forEach(function (p, idx) {
       var opt = document.createElement('option');
       opt.value = idx;
@@ -1061,6 +1068,7 @@
     });
 
     els.regionPreset.addEventListener('change', function () {
+      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); els.regionPreset.value = ''; return; }
       var idx = parseInt(els.regionPreset.value, 10);
       if (isNaN(idx)) return;
       var preset = presets[idx];
@@ -1071,25 +1079,32 @@
     });
 
     els.regionCreate.addEventListener('click', () => {
+      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
       state.regionEditor.setMode('create');
       els.modeHint.textContent = I18n.t('modeHint.create');
     });
 
     els.regionDelete.addEventListener('click', () => {
+      if (!state.regionEditor) return;
       const active = state.regionEditor.getActiveRegion();
       if (active) state.regionEditor.deleteRegion(active.id);
     });
 
-    els.regionUndo.addEventListener('click', () => state.regionEditor.undo());
-    els.regionRedo.addEventListener('click', () => state.regionEditor.redo());
+    els.regionUndo.addEventListener('click', () => { if (state.regionEditor) state.regionEditor.undo(); });
+    els.regionRedo.addEventListener('click', () => { if (state.regionEditor) state.regionEditor.redo(); });
 
     els.regionSave.addEventListener('click', () => {
+      if (!state.regionEditor) return;
       const blob = new Blob([state.regionEditor.exportConfig()], { type: 'application/json' });
       saveAs(blob, 'picmark-region-config.json');
     });
 
-    els.regionLoad.addEventListener('click', () => els.regionConfigInput.click());
+    els.regionLoad.addEventListener('click', () => {
+      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
+      els.regionConfigInput.click();
+    });
     els.regionConfigInput.addEventListener('change', (e) => {
+      if (!state.regionEditor) return;
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
@@ -1122,6 +1137,7 @@
     configMap.forEach((item) => {
       const event = (item.el.type === 'checkbox' || item.el.tagName === 'SELECT') ? 'change' : 'input';
       item.el.addEventListener(event, () => {
+        if (!state.regionEditor) return;
         const region = state.regionEditor.getActiveRegion();
         if (!region) return;
         let value;
@@ -1143,6 +1159,7 @@
   // ===== Initial state =====
   I18n.apply();
   updatePerfMonitor();
+  bindRegionConfigEvents();
   setMode('position');
 
   // 语言切换后重新渲染预览
