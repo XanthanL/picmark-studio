@@ -37,13 +37,12 @@
 
     <main class="container">
 
-      <!-- ===== 01 底图与定位 ===== -->
+      <!-- ===== 01 底图与文字 ===== -->
       <section class="sec">
         <div class="sec-head">
           <span class="sec-no">01</span>
           <div class="sec-titles">
-            <h2 class="sec-title">底图与定位</h2>
-            <span class="sec-sub">BASE IMAGE · POSITION · COLOR · REGION</span>
+            <h2 class="sec-title">底图与文字</h2>
           </div>
         </div>
         <div class="sec-body">
@@ -69,7 +68,82 @@
           </div>
           <div id="imageInfo" class="file-info"></div>
 
-          <div class="sub-divider"><span>定位 · 取色 · 区域</span></div>
+          <div class="sub-divider"><span>文字样式</span></div>
+
+          <div class="form-grid">
+            <label class="field">字号
+              <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
+            </label>
+            <label class="field">颜色
+              <input type="color" id="fontColor" value="#C89B5C">
+            </label>
+            <label class="field">对齐
+              <select id="textAlign">
+                <option value="left">左对齐</option>
+                <option value="center" selected>居中</option>
+                <option value="right">右对齐</option>
+              </select>
+            </label>
+            <label class="field">最大宽度
+              <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
+            </label>
+            <label class="field">字重
+              <select id="fontWeight">
+                <option value="100">100 · 极细</option>
+                <option value="200">200 · 特细</option>
+                <option value="300">300 · 细</option>
+                <option value="400" selected>400 · 常规</option>
+                <option value="500">500 · 中等</option>
+                <option value="600">600 · 半粗</option>
+                <option value="700">700 · 粗</option>
+                <option value="800">800 · 特粗</option>
+                <option value="900">900 · 黑</option>
+              </select>
+              <span class="weight-status" id="fontWeightStatus"></span>
+              <span class="error-msg" id="fontWeightError"></span>
+              <span class="weight-hint" id="fontWeightHint"></span>
+            </label>
+            <label class="field full">字体
+              <select id="fontFamily">
+                <optgroup label="中文字体">
+                  <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+                  <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
+                  <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
+                  <option value="SimSun, Songti SC, serif">宋体</option>
+                  <option value="KaiTi, Kaiti SC, serif">楷体</option>
+                  <option value="FangSong, STFangsong, serif">仿宋</option>
+                  <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
+                  <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
+                  <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
+                  <option value="STLiti, LiSu, serif">华文隶书</option>
+                  <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
+                </optgroup>
+                <optgroup label="英文字体">
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+                  <option value="Georgia, Times New Roman, serif">Georgia</option>
+                  <option value="Times New Roman, Times, serif">Times New Roman</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="Tahoma, sans-serif">Tahoma</option>
+                  <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                  <option value="Courier New, monospace">Courier New</option>
+                  <option value="Impact, sans-serif">Impact</option>
+                  <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+                </optgroup>
+                <optgroup label="其他">
+                  <option value="sans-serif">系统默认</option>
+                  <option value="custom">自定义字体</option>
+                </optgroup>
+              </select>
+            </label>
+            <label class="field full custom-font" style="display:none;">
+              <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
+              <span class="secondary-btn">上传字体文件</span>
+              <span id="fontName" class="file-info"></span>
+            </label>
+          </div>
+
+          <div class="sub-divider"><span>定位与区域</span></div>
 
           <div class="mode-switch">
             <button type="button" class="mode-btn active" data-mode="position">定位</button>
@@ -213,98 +287,12 @@
         </div>
       </section>
 
-      <!-- ===== 02 文字样式 ===== -->
+      <!-- ===== 02 导入名单 ===== -->
       <section class="sec">
         <div class="sec-head">
           <span class="sec-no">02</span>
           <div class="sec-titles">
-            <h2 class="sec-title">文字样式</h2>
-            <span class="sec-sub">TYPOGRAPHY</span>
-          </div>
-        </div>
-        <div class="sec-body">
-          <div class="form-grid">
-            <label class="field">字号
-              <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
-            </label>
-            <label class="field">颜色
-              <input type="color" id="fontColor" value="#C89B5C">
-            </label>
-            <label class="field">对齐
-              <select id="textAlign">
-                <option value="left">左对齐</option>
-                <option value="center" selected>居中</option>
-                <option value="right">右对齐</option>
-              </select>
-            </label>
-            <label class="field">最大宽度
-              <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
-            </label>
-            <label class="field">字重
-              <select id="fontWeight">
-                <option value="100">100 · 极细</option>
-                <option value="200">200 · 特细</option>
-                <option value="300">300 · 细</option>
-                <option value="400" selected>400 · 常规</option>
-                <option value="500">500 · 中等</option>
-                <option value="600">600 · 半粗</option>
-                <option value="700">700 · 粗</option>
-                <option value="800">800 · 特粗</option>
-                <option value="900">900 · 黑</option>
-              </select>
-              <span class="weight-status" id="fontWeightStatus"></span>
-              <span class="error-msg" id="fontWeightError"></span>
-              <span class="weight-hint" id="fontWeightHint"></span>
-            </label>
-            <label class="field full">字体
-              <select id="fontFamily">
-                <optgroup label="中文字体">
-                  <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
-                  <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
-                  <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
-                  <option value="SimSun, Songti SC, serif">宋体</option>
-                  <option value="KaiTi, Kaiti SC, serif">楷体</option>
-                  <option value="FangSong, STFangsong, serif">仿宋</option>
-                  <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
-                  <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
-                  <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
-                  <option value="STLiti, LiSu, serif">华文隶书</option>
-                  <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
-                </optgroup>
-                <optgroup label="英文字体">
-                  <option value="Arial, sans-serif">Arial</option>
-                  <option value="Helvetica, Arial, sans-serif">Helvetica</option>
-                  <option value="Georgia, Times New Roman, serif">Georgia</option>
-                  <option value="Times New Roman, Times, serif">Times New Roman</option>
-                  <option value="Verdana, sans-serif">Verdana</option>
-                  <option value="Tahoma, sans-serif">Tahoma</option>
-                  <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                  <option value="Courier New, monospace">Courier New</option>
-                  <option value="Impact, sans-serif">Impact</option>
-                  <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-                </optgroup>
-                <optgroup label="其他">
-                  <option value="sans-serif">系统默认</option>
-                  <option value="custom">自定义字体</option>
-                </optgroup>
-              </select>
-            </label>
-            <label class="field full custom-font" style="display:none;">
-              <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
-              <span class="secondary-btn">上传字体文件</span>
-              <span id="fontName" class="file-info"></span>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <!-- ===== 03 导入名单 ===== -->
-      <section class="sec">
-        <div class="sec-head">
-          <span class="sec-no">03</span>
-          <div class="sec-titles">
             <h2 class="sec-title">导入名单</h2>
-            <span class="sec-sub">NAME LIST</span>
           </div>
         </div>
         <div class="sec-body">
@@ -317,13 +305,12 @@
         </div>
       </section>
 
-      <!-- ===== 04 批量生成 ===== -->
+      <!-- ===== 03 批量生成 ===== -->
       <section class="sec">
         <div class="sec-head">
-          <span class="sec-no">04</span>
+          <span class="sec-no">03</span>
           <div class="sec-titles">
             <h2 class="sec-title">批量生成</h2>
-            <span class="sec-sub">GENERATE · EXPORT</span>
           </div>
         </div>
         <div class="sec-body">
