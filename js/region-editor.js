@@ -334,21 +334,21 @@
       const h = r.height * s;
 
       this.ctx.save();
-      this.ctx.strokeStyle = isActive ? '#1E88E5' : '#64748B';
+      this.ctx.strokeStyle = isActive ? '#C8442C' : '#9A9388';
       this.ctx.lineWidth = isActive ? 2 : 1;
       this.ctx.setLineDash(isActive ? [5, 3] : [3, 3]);
       this.ctx.strokeRect(x, y, w, h);
 
       // Size label
-      this.ctx.fillStyle = isActive ? '#1E88E5' : '#64748B';
-      this.ctx.font = '11px Arial, sans-serif';
+      this.ctx.fillStyle = isActive ? '#C8442C' : '#9A9388';
+      this.ctx.font = '11px "SF Mono", "Courier New", monospace';
       this.ctx.setLineDash([]);
       const label = `${r.width}×${r.height}`;
       this.ctx.fillText(label, x + 4, y - 4);
 
       // Resize handle
       if (isActive) {
-        this.ctx.fillStyle = '#1E88E5';
+        this.ctx.fillStyle = '#C8442C';
         this.ctx.fillRect(x + w - 6, y + h - 6, 12, 12);
       }
       this.ctx.restore();
@@ -357,7 +357,7 @@
     _drawDraftRect(x, y, w, h) {
       const s = this.scale;
       this.ctx.save();
-      this.ctx.strokeStyle = '#1E88E5';
+      this.ctx.strokeStyle = '#C8442C';
       this.ctx.lineWidth = 1;
       this.ctx.setLineDash([5, 3]);
       this.ctx.strokeRect(x * s, y * s, w * s, h * s);
