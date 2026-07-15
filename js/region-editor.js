@@ -30,6 +30,7 @@
       autoFit: true,
       useNameList: true,
       fixedText: '',
+      dataColumn: '',
       ellipsis: false,
     };
   }
@@ -113,6 +114,140 @@
         {
           rx: 0.50, ry: 0.62, rw: 0.44, rh: 0.20,
           config: { useNameList: false, fixedText: '职务', fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'right', maxFontSize: 36, minFontSize: 12 }
+        }
+      ]
+    },
+    {
+      name: '会议桌牌',
+      desc: '超大姓名居中竖排',
+      regions: [
+        {
+          rx: 0.25, ry: 0.08, rw: 0.50, rh: 0.84,
+          config: { useNameList: true, fontFamily: 'SimHei, Microsoft YaHei, sans-serif', fontWeight: 900, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 300, minFontSize: 60, rotation: 0 }
+        }
+      ]
+    },
+    {
+      name: '毕业证书',
+      desc: '姓名 + 专业 + 年份',
+      regions: [
+        {
+          rx: 0.20, ry: 0.32, rw: 0.60, rh: 0.16,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 72, minFontSize: 20, letterSpacing: 6 }
+        },
+        {
+          rx: 0.25, ry: 0.52, rw: 0.50, rh: 0.10,
+          config: { useNameList: false, fixedText: '专业名称', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 400, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 32, minFontSize: 12 }
+        },
+        {
+          rx: 0.55, ry: 0.82, rw: 0.35, rh: 0.10,
+          config: { useNameList: false, fixedText: '二〇二六年', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 400, color: '#1A1A1A', alignV: 'middle', alignH: 'right', maxFontSize: 28, minFontSize: 12 }
+        }
+      ]
+    },
+    {
+      name: '婚礼席位',
+      desc: '桌号居上 + 姓名居下',
+      regions: [
+        {
+          rx: 0.30, ry: 0.10, rw: 0.40, rh: 0.30,
+          config: { useNameList: false, fixedText: '第 1 桌', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 700, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 80, minFontSize: 24 }
+        },
+        {
+          rx: 0.15, ry: 0.50, rw: 0.70, rh: 0.30,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 600, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 100, minFontSize: 24, letterSpacing: 10 }
+        }
+      ]
+    },
+    {
+      name: '活动海报',
+      desc: '嘉宾名 + 职位',
+      regions: [
+        {
+          rx: 0.10, ry: 0.35, rw: 0.80, rh: 0.22,
+          config: { useNameList: true, fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', fontWeight: 800, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 100, minFontSize: 24 }
+        },
+        {
+          rx: 0.25, ry: 0.60, rw: 0.50, rh: 0.12,
+          config: { useNameList: false, fixedText: '嘉宾职位', fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'center', maxFontSize: 36, minFontSize: 12 }
+        }
+      ]
+    },
+    {
+      name: '生日贺卡',
+      desc: '寿星名 + 祝福语',
+      regions: [
+        {
+          rx: 0.18, ry: 0.20, rw: 0.64, rh: 0.20,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 700, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 80, minFontSize: 20 }
+        },
+        {
+          rx: 0.15, ry: 0.55, rw: 0.70, rh: 0.18,
+          config: { useNameList: false, fixedText: '生日快乐', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 500, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 56, minFontSize: 16, letterSpacing: 12 }
+        }
+      ]
+    },
+    {
+      name: '工位铭牌',
+      desc: '姓名 + 部门',
+      regions: [
+        {
+          rx: 0.08, ry: 0.15, rw: 0.84, rh: 0.40,
+          config: { useNameList: true, fontFamily: 'Microsoft YaHei, sans-serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 120, minFontSize: 28 }
+        },
+        {
+          rx: 0.20, ry: 0.62, rw: 0.60, rh: 0.18,
+          config: { useNameList: false, fixedText: '部门名称', fontFamily: 'Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'center', maxFontSize: 40, minFontSize: 14 }
+        }
+      ]
+    },
+    {
+      name: '考试准考证',
+      desc: '姓名 + 考号 + 考场',
+      regions: [
+        {
+          rx: 0.30, ry: 0.15, rw: 0.55, rh: 0.16,
+          config: { useNameList: true, fontFamily: 'SimHei, Microsoft YaHei, sans-serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'left', maxFontSize: 48, minFontSize: 16 }
+        },
+        {
+          rx: 0.30, ry: 0.35, rw: 0.55, rh: 0.12,
+          config: { useNameList: false, fixedText: '考号 000000', fontFamily: 'SF Mono, Courier New, monospace', fontWeight: 500, color: '#1A1A1A', alignV: 'middle', alignH: 'left', maxFontSize: 28, minFontSize: 12 }
+        },
+        {
+          rx: 0.30, ry: 0.52, rw: 0.55, rh: 0.12,
+          config: { useNameList: false, fixedText: '考场 第1考场', fontFamily: 'SimHei, Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'left', maxFontSize: 26, minFontSize: 12 }
+        }
+      ]
+    },
+    {
+      name: '节日福卡',
+      desc: '称呼 + 福字祝福',
+      regions: [
+        {
+          rx: 0.30, ry: 0.12, rw: 0.40, rh: 0.22,
+          config: { useNameList: false, fixedText: '福', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 900, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 180, minFontSize: 60 }
+        },
+        {
+          rx: 0.15, ry: 0.60, rw: 0.70, rh: 0.20,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 600, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 56, minFontSize: 16, letterSpacing: 8 }
+        }
+      ]
+    },
+    {
+      name: '运动号码布',
+      desc: '号码 + 姓名 + 队伍',
+      regions: [
+        {
+          rx: 0.25, ry: 0.08, rw: 0.50, rh: 0.35,
+          config: { useNameList: false, fixedText: '001', fontFamily: 'Impact, sans-serif', fontWeight: 900, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 200, minFontSize: 60 }
+        },
+        {
+          rx: 0.10, ry: 0.48, rw: 0.80, rh: 0.20,
+          config: { useNameList: true, fontFamily: 'SimHei, Microsoft YaHei, sans-serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 72, minFontSize: 20 }
+        },
+        {
+          rx: 0.20, ry: 0.72, rw: 0.60, rh: 0.14,
+          config: { useNameList: false, fixedText: '队伍名称', fontFamily: 'Microsoft YaHei, sans-serif', fontWeight: 500, color: '#9A9388', alignV: 'middle', alignH: 'center', maxFontSize: 36, minFontSize: 12 }
         }
       ]
     }

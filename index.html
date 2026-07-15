@@ -17,22 +17,23 @@
       <div class="hero-inner">
         <div class="hero-left">
           <div class="hero-seal" aria-hidden="true">印</div>
-          <p class="hero-kicker">— PICMARK STUDIO</p>
-          <h1 class="hero-title">图印<br>工坊</h1>
-          <p class="hero-desc">上传底图，标记文字位置，导入名单，一键生成批量个性化图片。</p>
+          <p class="hero-kicker" data-i18n="hero.kicker">— PICMARK STUDIO</p>
+          <h1 class="hero-title" data-i18n-html="hero.title">图印<br>工坊</h1>
+          <p class="hero-desc" data-i18n="hero.desc">上传底图，标记文字位置，导入名单，一键生成批量个性化图片。</p>
         </div>
         <div class="hero-right">
-          <p class="hero-right-label">应用场景 · USE CASES</p>
+          <p class="hero-right-label" data-i18n="hero.scenes">应用场景 · USE CASES</p>
           <ul class="hero-scenes">
-            <li><span class="scene-no">壹</span><span>工牌 · 胸牌印制</span></li>
-            <li><span class="scene-no">贰</span><span>证书 · 奖状生成</span></li>
-            <li><span class="scene-no">叁</span><span>活动签到名牌</span></li>
-            <li><span class="scene-no">肆</span><span>个性化邀请函</span></li>
-            <li><span class="scene-no">伍</span><span>团建纪念图</span></li>
-            <li><span class="scene-no">陆</span><span>贺卡 · 名片</span></li>
+            <li><span class="scene-no">壹</span><span data-i18n="scene.1">工牌 · 胸牌印制</span></li>
+            <li><span class="scene-no">贰</span><span data-i18n="scene.2">证书 · 奖状生成</span></li>
+            <li><span class="scene-no">叁</span><span data-i18n="scene.3">活动签到名牌</span></li>
+            <li><span class="scene-no">肆</span><span data-i18n="scene.4">个性化邀请函</span></li>
+            <li><span class="scene-no">伍</span><span data-i18n="scene.5">团建纪念图</span></li>
+            <li><span class="scene-no">陆</span><span data-i18n="scene.6">贺卡 · 名片</span></li>
           </ul>
         </div>
       </div>
+      <button type="button" class="lang-toggle" onclick="I18n.toggle()" data-i18n="lang.toggle">EN</button>
     </header>
 
     <main class="container">
@@ -42,7 +43,7 @@
         <div class="sec-head">
           <span class="sec-no">01</span>
           <div class="sec-titles">
-            <h2 class="sec-title">底图与文字</h2>
+            <h2 class="sec-title" data-i18n="sec.01.title">底图与文字</h2>
           </div>
         </div>
         <div class="sec-body">
@@ -53,41 +54,41 @@
               <circle cx="8.5" cy="8.5" r="1.5"></circle>
               <path d="M21 15l-5-5L5 21"></path>
             </svg>
-            <span class="drop-title">点击或拖拽图片至此</span>
-            <span class="drop-sub">JPG · PNG · WEBP</span>
+            <span class="drop-title" data-i18n="drop.title">点击或拖拽图片至此</span>
+            <span class="drop-sub" data-i18n="drop.sub">JPG · PNG · WEBP</span>
           </label>
           <div class="form-row quality-row">
-            <label class="field full">输出质量
+            <label class="field full"><span data-i18n="label.quality">输出质量</span>
               <select id="quality">
-                <option value="original">原图尺寸</option>
-                <option value="high" selected>高清（最大边 2048）</option>
-                <option value="medium">标准（最大边 1280）</option>
-                <option value="low">快速（最大边 800）</option>
+                <option value="original" data-i18n="quality.original">原图尺寸</option>
+                <option value="high" selected data-i18n="quality.high">高清（最大边 2048）</option>
+                <option value="medium" data-i18n="quality.medium">标准（最大边 1280）</option>
+                <option value="low" data-i18n="quality.low">快速（最大边 800）</option>
               </select>
             </label>
           </div>
           <div id="imageInfo" class="file-info"></div>
 
-          <div class="sub-divider"><span>文字样式</span></div>
+          <div class="sub-divider"><span data-i18n="divider.typography">文字样式</span></div>
 
           <div class="form-grid">
-            <label class="field">字号
+            <label class="field"><span data-i18n="label.fontSize">字号</span>
               <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
             </label>
-            <label class="field">颜色
+            <label class="field"><span data-i18n="label.color">颜色</span>
               <input type="color" id="fontColor" value="#C89B5C">
             </label>
-            <label class="field">对齐
+            <label class="field"><span data-i18n="label.align">对齐</span>
               <select id="textAlign">
-                <option value="left">左对齐</option>
-                <option value="center" selected>居中</option>
-                <option value="right">右对齐</option>
+                <option value="left" data-i18n="align.left">左对齐</option>
+                <option value="center" selected data-i18n="align.center">居中</option>
+                <option value="right" data-i18n="align.right">右对齐</option>
               </select>
             </label>
-            <label class="field">最大宽度
+            <label class="field"><span data-i18n="label.maxWidth">最大宽度</span>
               <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
             </label>
-            <label class="field">字重
+            <label class="field"><span data-i18n="label.fontWeight">字重</span>
               <select id="fontWeight">
                 <option value="100">100 · 极细</option>
                 <option value="200">200 · 特细</option>
@@ -103,7 +104,7 @@
               <span class="error-msg" id="fontWeightError"></span>
               <span class="weight-hint" id="fontWeightHint"></span>
             </label>
-            <label class="field full">字体
+            <label class="field full"><span data-i18n="label.fontFamily">字体</span>
               <select id="fontFamily">
                 <optgroup label="中文字体">
                   <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
@@ -138,26 +139,26 @@
             </label>
             <label class="field full custom-font" style="display:none;">
               <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
-              <span class="secondary-btn">上传字体文件</span>
+              <span class="secondary-btn" data-i18n="label.uploadFont">上传字体文件</span>
               <span id="fontName" class="file-info"></span>
             </label>
           </div>
 
-          <div class="sub-divider"><span>定位与区域</span></div>
+          <div class="sub-divider"><span data-i18n="divider.position">定位与区域</span></div>
 
           <div class="mode-switch">
-            <button type="button" class="mode-btn active" data-mode="position">定位</button>
-            <button type="button" class="mode-btn" data-mode="pick">取色</button>
-            <button type="button" class="mode-btn" data-mode="region">区域</button>
-            <div class="color-badge" title="当前文字颜色">
+            <button type="button" class="mode-btn active" data-mode="position" data-i18n="mode.position">定位</button>
+            <button type="button" class="mode-btn" data-mode="pick" data-i18n="mode.pick">取色</button>
+            <button type="button" class="mode-btn" data-mode="region" data-i18n="mode.region">区域</button>
+            <div class="color-badge" title="当前文字颜色" data-i18n-title="colorBadge.title">
               <span id="pickedColor" class="color-swatch"></span>
               <span id="colorValue" class="color-value">#C89B5C</span>
             </div>
           </div>
-          <p class="hint" id="modeHint">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
+          <p class="hint" id="modeHint" data-i18n="modeHint.position">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
           <div class="canvas-wrapper" id="canvasWrapper">
             <canvas id="previewCanvas"></canvas>
-            <div id="marker" class="marker">定位位置</div>
+            <div id="marker" class="marker" data-i18n="marker.text">定位位置</div>
           </div>
           <div class="form-row compact" id="pointControls">
             <label class="coord">X<input type="number" id="posX" value="540"></label>
@@ -168,33 +169,40 @@
           <div id="regionControls" style="display:none;">
             <div class="region-toolbar">
               <select id="regionPreset" class="preset-select">
-                <option value="">套用预设…</option>
+                <option value="" data-i18n="region.preset">套用预设…</option>
               </select>
-              <button type="button" id="regionCreate" class="btn-small">新建区域</button>
-              <button type="button" id="regionDelete" class="btn-small btn-danger">删除</button>
-              <button type="button" id="regionUndo" class="btn-small">撤销</button>
-              <button type="button" id="regionRedo" class="btn-small">重做</button>
-              <button type="button" id="regionSave" class="btn-small">保存配置</button>
-              <button type="button" id="regionLoad" class="btn-small">加载配置</button>
+              <button type="button" id="regionCreate" class="btn-small" data-i18n="region.create">新建区域</button>
+              <button type="button" id="regionDelete" class="btn-small btn-danger" data-i18n="region.delete">删除</button>
+              <button type="button" id="regionUndo" class="btn-small" data-i18n="region.undo">撤销</button>
+              <button type="button" id="regionRedo" class="btn-small" data-i18n="region.redo">重做</button>
+              <button type="button" id="regionSave" class="btn-small" data-i18n="region.save">保存配置</button>
+              <button type="button" id="regionLoad" class="btn-small" data-i18n="region.load">加载配置</button>
               <input type="file" id="regionConfigInput" accept=".json" hidden>
             </div>
             <div id="regionList" class="region-list"></div>
             <div id="regionConfig" class="region-config" style="display:none;">
               <div class="form-row">
-                <label class="field full">文本内容
+                <label class="field full"><span data-i18n="label.textSource">文本内容</span>
                   <select id="regionTextSource">
-                    <option value="name">从名单读取</option>
-                    <option value="fixed">固定文本</option>
+                    <option value="name" data-i18n="textSource.name">从名单读取</option>
+                    <option value="fixed" data-i18n="textSource.fixed">固定文本</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row" id="regionDataColumnRow" style="display:none;">
+                <label class="field full"><span data-i18n="label.dataColumn">数据列</span>
+                  <select id="regionDataColumn">
+                    <option value="" data-i18n="dataColumn.default">默认列</option>
                   </select>
                 </label>
               </div>
               <div class="form-row" id="regionFixedTextRow" style="display:none;">
-                <label class="field full">固定文本
-                  <input type="text" id="regionFixedText" placeholder="输入固定文字">
+                <label class="field full"><span data-i18n="label.regionFixedText">固定文本</span>
+                  <input type="text" id="regionFixedText" data-i18n-placeholder="placeholder.fixedText" placeholder="输入固定文字">
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">字体
+                <label class="field"><span data-i18n="label.regionFont">字体</span>
                   <select id="regionFontFamily">
                     <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
                     <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
@@ -215,36 +223,36 @@
                     <option value="Comic Sans MS, cursive">Comic Sans MS</option>
                   </select>
                 </label>
-                <label class="field">颜色
+                <label class="field"><span data-i18n="label.regionColor">颜色</span>
                   <input type="color" id="regionColor" value="#000000">
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">不透明度
+                <label class="field"><span data-i18n="label.opacity">不透明度</span>
                   <input type="range" id="regionOpacity" min="0" max="1" step="0.05" value="1">
                 </label>
-                <label class="field">旋转
+                <label class="field"><span data-i18n="label.rotation">旋转</span>
                   <input type="number" id="regionRotation" value="0" min="0" max="360" step="1">
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">水平对齐
+                <label class="field"><span data-i18n="label.alignH">水平对齐</span>
                   <select id="regionAlignH">
-                    <option value="left">左对齐</option>
-                    <option value="center" selected>居中</option>
-                    <option value="right">右对齐</option>
+                    <option value="left" data-i18n="align.left">左对齐</option>
+                    <option value="center" selected data-i18n="align.center">居中</option>
+                    <option value="right" data-i18n="align.right">右对齐</option>
                   </select>
                 </label>
-                <label class="field">垂直对齐
+                <label class="field"><span data-i18n="label.alignV">垂直对齐</span>
                   <select id="regionAlignV">
-                    <option value="top">顶部</option>
-                    <option value="middle" selected>居中</option>
-                    <option value="bottom">底部</option>
+                    <option value="top" data-i18n="alignV.top">顶部</option>
+                    <option value="middle" selected data-i18n="alignV.middle">居中</option>
+                    <option value="bottom" data-i18n="alignV.bottom">底部</option>
                   </select>
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">字重
+                <label class="field"><span data-i18n="label.fontWeight">字重</span>
                   <select id="regionFontWeight">
                     <option value="100">100 · 极细</option>
                     <option value="200">200 · 特细</option>
@@ -257,32 +265,32 @@
                     <option value="900">900 · 黑</option>
                   </select>
                 </label>
-                <label class="field">样式
+                <label class="field"><span data-i18n="label.fontStyle">样式</span>
                   <select id="regionFontStyle">
-                    <option value="normal" selected>常规</option>
-                    <option value="italic">斜体</option>
+                    <option value="normal" selected data-i18n="fontStyle.normal">常规</option>
+                    <option value="italic" data-i18n="fontStyle.italic">斜体</option>
                   </select>
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">行高
+                <label class="field"><span data-i18n="label.lineHeight">行高</span>
                   <input type="number" id="regionLineHeight" value="1.2" min="0.5" max="3" step="0.1">
                 </label>
-                <label class="field">字间距
+                <label class="field"><span data-i18n="label.letterSpacing">字间距</span>
                   <input type="number" id="regionLetterSpacing" value="0" min="-10" max="100" step="1">
                 </label>
               </div>
               <div class="form-row">
-                <label class="field">最小字号
+                <label class="field"><span data-i18n="label.minFont">最小字号</span>
                   <input type="number" id="regionMinFont" value="12" min="8" max="100" step="1">
                 </label>
-                <label class="field">最大字号
+                <label class="field"><span data-i18n="label.maxFont">最大字号</span>
                   <input type="number" id="regionMaxFont" value="300" min="12" max="500" step="1">
                 </label>
               </div>
               <div class="form-row">
                 <label class="field full">
-                  <input type="checkbox" id="regionAutoFit" checked> 自动适配字号
+                  <input type="checkbox" id="regionAutoFit" checked> <span data-i18n="label.autoFit">自动适配字号</span>
                 </label>
               </div>
             </div>
@@ -295,15 +303,15 @@
         <div class="sec-head">
           <span class="sec-no">02</span>
           <div class="sec-titles">
-            <h2 class="sec-title">导入名单</h2>
+            <h2 class="sec-title" data-i18n="sec.02.title">导入名单</h2>
           </div>
         </div>
         <div class="sec-body">
-          <p class="hint">每行一个名字；也可直接上传 .txt 或 .csv 文件</p>
-          <textarea id="namesInput" rows="5" placeholder="张三&#10;李四&#10;王五"></textarea>
+          <p class="hint" data-i18n="names.hint">每行一个名字；也可上传 CSV 文件（首行为表头，逗号分隔），多列数据可分别填充不同区域</p>
+          <textarea id="namesInput" rows="5" data-i18n-placeholder="names.placeholder" placeholder="张三&#10;李四&#10;王五"></textarea>
           <label class="secondary-btn">
             <input type="file" id="namesFileInput" accept=".txt,.csv" hidden>
-            <span>上传名单文件</span>
+            <span data-i18n="names.upload">上传名单文件</span>
           </label>
         </div>
       </section>
@@ -313,21 +321,21 @@
         <div class="sec-head">
           <span class="sec-no">03</span>
           <div class="sec-titles">
-            <h2 class="sec-title">批量生成</h2>
+            <h2 class="sec-title" data-i18n="sec.03.title">批量生成</h2>
           </div>
         </div>
         <div class="sec-body">
           <div class="perf-panel" id="perfPanel" style="display:none;">
-            <div class="perf-item"><span>输出尺寸</span><b id="outputSize">-</b></div>
-            <div class="perf-item"><span>处理模式</span><b id="perfMode">-</b></div>
-            <div class="perf-item"><span>内存占用</span><b id="memValue">-</b></div>
+            <div class="perf-item"><span data-i18n="perf.outputSize">输出尺寸</span><b id="outputSize">-</b></div>
+            <div class="perf-item"><span data-i18n="perf.mode">处理模式</span><b id="perfMode">-</b></div>
+            <div class="perf-item"><span data-i18n="perf.memory">内存占用</span><b id="memValue">-</b></div>
           </div>
           <div class="perf-warning" id="perfWarning"></div>
           <div class="progress" id="progressBox" style="display:none;">
             <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
             <span id="progressText">0%</span>
           </div>
-          <button id="generateBtn" class="primary-btn" disabled>开始生成并下载</button>
+          <button id="generateBtn" class="primary-btn" disabled data-i18n="generate.btn">开始生成并下载</button>
           <div id="previewList" class="preview-list"></div>
         </div>
       </section>
@@ -336,7 +344,7 @@
 
     <footer class="footer">
       <div class="footer-rule"></div>
-      <p class="footer-title">图印工坊 · 批量图片制作</p>
+      <p class="footer-title" data-i18n="footer.title">图印工坊 · 批量图片制作</p>
       <p class="signature">by XanthanL</p>
     </footer>
 
@@ -344,6 +352,7 @@
 
   <script src="lib/jszip.min.js"></script>
   <script src="lib/FileSaver.min.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/region-editor.js"></script>
   <script src="js/app.js"></script>
 </body>
