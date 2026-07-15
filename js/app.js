@@ -62,6 +62,7 @@
     perfWarning: document.getElementById('perfWarning'),
     pointControls: document.getElementById('pointControls'),
     regionControls: document.getElementById('regionControls'),
+    regionPreset: document.getElementById('regionPreset'),
     regionCreate: document.getElementById('regionCreate'),
     regionDelete: document.getElementById('regionDelete'),
     regionUndo: document.getElementById('regionUndo'),
@@ -982,6 +983,25 @@
   }
 
   function bindRegionConfigEvents() {
+    // 填充预设下拉
+    var presets = RegionEditor.getPresets();
+    presets.forEach(function (p, idx) {
+      var opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = p.name + ' · ' + p.desc;
+      els.regionPreset.appendChild(opt);
+    });
+
+    els.regionPreset.addEventListener('change', function () {
+      var idx = parseInt(els.regionPreset.value, 10);
+      if (isNaN(idx)) return;
+      var preset = presets[idx];
+      state.regionEditor.applyPreset(preset);
+      els.modeHint.textContent = '已套用「' + preset.name + '」预设，拖拽区域可微调位置';
+      els.regionPreset.value = '';
+      renderPreview();
+    });
+
     els.regionCreate.addEventListener('click', () => {
       state.regionEditor.setMode('create');
       els.modeHint.textContent = '在图片上拖拽绘制一个矩形区域';
