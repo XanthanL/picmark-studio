@@ -514,33 +514,7 @@
   }
 
   function validateFontWeight() {
-    const raw = els.fontWeight.value.trim();
-    const errorEl = els.fontWeightError;
-    const inputEl = els.fontWeight;
-
-    if (raw === '') {
-      errorEl.textContent = '';
-      inputEl.classList.remove('invalid');
-      return 100;
-    }
-
-    const value = parseInt(raw, 10);
-
-    if (isNaN(value) || raw !== String(value)) {
-      errorEl.textContent = '请输入整数';
-      inputEl.classList.add('invalid');
-      return 100;
-    }
-
-    if (value < 10 || value > 900) {
-      errorEl.textContent = '字重需在 10 到 900 之间';
-      inputEl.classList.add('invalid');
-      return 100;
-    }
-
-    errorEl.textContent = '';
-    inputEl.classList.remove('invalid');
-    return value;
+    return parseInt(els.fontWeight.value, 10) || 400;
   }
 
   // ===== Marker =====
@@ -569,7 +543,7 @@
     refreshTextPreview();
     updateFontWeightStatus();
   });
-  els.fontWeight.addEventListener('input', () => {
+  els.fontWeight.addEventListener('change', () => {
     refreshTextPreview();
     updateFontWeightStatus();
   });
@@ -1057,7 +1031,7 @@
     ];
 
     configMap.forEach((item) => {
-      const event = item.el.type === 'checkbox' ? 'change' : 'input';
+      const event = (item.el.type === 'checkbox' || item.el.tagName === 'SELECT') ? 'change' : 'input';
       item.el.addEventListener(event, () => {
         const region = state.regionEditor.getActiveRegion();
         if (!region) return;
