@@ -800,6 +800,35 @@ textarea::placeholder {
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
+.preset-select {
+  padding: 8px 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  background: var(--paper-soft);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  font-family: var(--sans);
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239A9388' stroke-width='1.2'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.preset-select:hover {
+  border-color: var(--seal);
+}
+
+.preset-select:focus {
+  border-color: var(--seal);
+  outline: none;
+}
+
 .btn-small:hover {
   border-color: var(--ink);
   background: var(--ink);

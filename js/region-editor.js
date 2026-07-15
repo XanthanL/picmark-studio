@@ -34,6 +34,90 @@
     };
   }
 
+  // 预设模板：坐标均以图片宽高的比例（0~1）表示，应用时换算为实际像素
+  var PRESETS = [
+    {
+      name: '工牌胸牌',
+      desc: '姓名居上 + 编号居下',
+      regions: [
+        {
+          rx: 0.22, ry: 0.12, rw: 0.56, rh: 0.28,
+          config: { useNameList: true, fontFamily: 'Microsoft YaHei, sans-serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 120, minFontSize: 24 }
+        },
+        {
+          rx: 0.30, ry: 0.72, rw: 0.40, rh: 0.16,
+          config: { useNameList: false, fixedText: '编号 0001', fontFamily: 'SF Mono, Courier New, monospace', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'center', maxFontSize: 40, minFontSize: 14 }
+        }
+      ]
+    },
+    {
+      name: '荣誉证书',
+      desc: '姓名居中 + 日期右下',
+      regions: [
+        {
+          rx: 0.15, ry: 0.38, rw: 0.70, rh: 0.22,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 700, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 100, minFontSize: 24 }
+        },
+        {
+          rx: 0.55, ry: 0.78, rw: 0.35, rh: 0.12,
+          config: { useNameList: false, fixedText: '二〇二六年', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 400, color: '#1A1A1A', alignV: 'middle', alignH: 'right', maxFontSize: 36, minFontSize: 14 }
+        }
+      ]
+    },
+    {
+      name: '邀请函',
+      desc: '嘉宾姓名居中',
+      regions: [
+        {
+          rx: 0.20, ry: 0.40, rw: 0.60, rh: 0.24,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 600, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 90, minFontSize: 20, letterSpacing: 8 }
+        }
+      ]
+    },
+    {
+      name: '签到名牌',
+      desc: '超大姓名 + 单位底部',
+      regions: [
+        {
+          rx: 0.08, ry: 0.15, rw: 0.84, rh: 0.55,
+          config: { useNameList: true, fontFamily: 'SimHei, Microsoft YaHei, sans-serif', fontWeight: 900, color: '#1A1A1A', alignV: 'middle', alignH: 'center', maxFontSize: 260, minFontSize: 40 }
+        },
+        {
+          rx: 0.20, ry: 0.74, rw: 0.60, rh: 0.14,
+          config: { useNameList: false, fixedText: '单位名称', fontFamily: 'Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'center', maxFontSize: 44, minFontSize: 14 }
+        }
+      ]
+    },
+    {
+      name: '贺卡祝福',
+      desc: '称呼居中 + 落款右下',
+      regions: [
+        {
+          rx: 0.18, ry: 0.30, rw: 0.64, rh: 0.22,
+          config: { useNameList: true, fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 500, color: '#C8442C', alignV: 'middle', alignH: 'center', maxFontSize: 80, minFontSize: 18 }
+        },
+        {
+          rx: 0.50, ry: 0.80, rw: 0.40, rh: 0.12,
+          config: { useNameList: false, fixedText: '敬上', fontFamily: 'STKaiti, Kaiti SC, serif', fontWeight: 400, color: '#1A1A1A', alignV: 'middle', alignH: 'right', maxFontSize: 32, minFontSize: 12 }
+        }
+      ]
+    },
+    {
+      name: '简约名片',
+      desc: '姓名左上 + 职务右下',
+      regions: [
+        {
+          rx: 0.06, ry: 0.10, rw: 0.50, rh: 0.30,
+          config: { useNameList: true, fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', fontWeight: 700, color: '#1A1A1A', alignV: 'middle', alignH: 'left', maxFontSize: 80, minFontSize: 18 }
+        },
+        {
+          rx: 0.50, ry: 0.62, rw: 0.44, rh: 0.20,
+          config: { useNameList: false, fixedText: '职务', fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', fontWeight: 400, color: '#9A9388', alignV: 'middle', alignH: 'right', maxFontSize: 36, minFontSize: 12 }
+        }
+      ]
+    }
+  ];
+
   class RegionEditor {
     constructor(options) {
       this.canvas = options.canvas;
@@ -169,6 +253,27 @@
       } catch (e) {
         return false;
       }
+    }
+
+    // 应用预设模板：将比例坐标换算为实际像素
+    applyPreset(preset) {
+      if (!preset || !Array.isArray(preset.regions)) return false;
+      var W = this.width;
+      var H = this.height;
+      this.regions = preset.regions.map(function (r) {
+        return {
+          id: uid(),
+          x: clamp(Math.round(r.rx * W), 0, W),
+          y: clamp(Math.round(r.ry * H), 0, H),
+          width: clamp(Math.round(r.rw * W), 10, W),
+          height: clamp(Math.round(r.rh * H), 10, H),
+          config: Object.assign(defaultConfig(), r.config || {}),
+        };
+      });
+      this.activeId = this.regions[0]?.id || null;
+      this._pushHistory();
+      this._notify();
+      return true;
     }
 
     _notify() {
@@ -507,5 +612,6 @@
     }
   }
 
+  RegionEditor.getPresets = function () { return PRESETS; };
   root.RegionEditor = RegionEditor;
 })(typeof window !== 'undefined' ? window : this);
