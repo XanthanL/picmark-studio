@@ -71,11 +71,27 @@ body {
 
 .hero-inner {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 36px;
+}
+
+.hero-left {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-right {
+  flex-shrink: 0;
+  width: 196px;
+  padding-top: 6px;
 }
 
 .hero-seal {
   position: absolute;
-  top: -8px;
+  top: -6px;
   right: 0;
   width: 60px;
   height: 60px;
@@ -105,7 +121,7 @@ body {
 
 .hero-title {
   font-family: var(--serif);
-  font-size: clamp(52px, 16vw, 88px);
+  font-size: clamp(52px, 14vw, 84px);
   font-weight: 700;
   line-height: 0.96;
   letter-spacing: 0.04em;
@@ -119,6 +135,44 @@ body {
   max-width: 420px;
   line-height: 1.9;
   letter-spacing: 0.02em;
+}
+
+.hero-right-label {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero-scenes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.hero-scenes li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.scene-no {
+  font-family: var(--serif);
+  font-size: 11px;
+  color: var(--seal);
+  font-weight: 600;
+  flex-shrink: 0;
+  width: 14px;
 }
 
 /* ============================================================
@@ -184,6 +238,30 @@ body {
   margin-bottom: 16px;
   line-height: 1.7;
   letter-spacing: 0.02em;
+}
+
+.sub-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 28px 0 20px;
+}
+
+.sub-divider::before,
+.sub-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.sub-divider span {
+  font-family: var(--serif);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0.16em;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -868,6 +946,23 @@ textarea::placeholder {
 /* ============================================================
    Responsive
    ============================================================ */
+@media (max-width: 560px) {
+  .hero-inner {
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .hero-right {
+    width: 100%;
+  }
+
+  .hero-seal {
+    width: 52px;
+    height: 52px;
+    font-size: 30px;
+  }
+}
+
 @media (max-width: 420px) {
   .hero {
     padding: 52px 22px 44px;

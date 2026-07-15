@@ -15,22 +15,35 @@
     <!-- ===== Hero ===== -->
     <header class="hero">
       <div class="hero-inner">
-        <div class="hero-seal" aria-hidden="true">印</div>
-        <p class="hero-kicker">— PICMARK STUDIO</p>
-        <h1 class="hero-title">图印<br>工坊</h1>
-        <p class="hero-desc">上传底图，标记文字位置，导入名单，<br>一键生成批量个性化图片。</p>
+        <div class="hero-left">
+          <div class="hero-seal" aria-hidden="true">印</div>
+          <p class="hero-kicker">— PICMARK STUDIO</p>
+          <h1 class="hero-title">图印<br>工坊</h1>
+          <p class="hero-desc">上传底图，标记文字位置，导入名单，一键生成批量个性化图片。</p>
+        </div>
+        <div class="hero-right">
+          <p class="hero-right-label">应用场景 · USE CASES</p>
+          <ul class="hero-scenes">
+            <li><span class="scene-no">壹</span><span>工牌 · 胸牌印制</span></li>
+            <li><span class="scene-no">贰</span><span>证书 · 奖状生成</span></li>
+            <li><span class="scene-no">叁</span><span>活动签到名牌</span></li>
+            <li><span class="scene-no">肆</span><span>个性化邀请函</span></li>
+            <li><span class="scene-no">伍</span><span>团建纪念图</span></li>
+            <li><span class="scene-no">陆</span><span>贺卡 · 名片</span></li>
+          </ul>
+        </div>
       </div>
     </header>
 
     <main class="container">
 
-      <!-- ===== 01 上传底图 ===== -->
+      <!-- ===== 01 底图与定位 ===== -->
       <section class="sec">
         <div class="sec-head">
           <span class="sec-no">01</span>
           <div class="sec-titles">
-            <h2 class="sec-title">上传底图</h2>
-            <span class="sec-sub">BASE IMAGE</span>
+            <h2 class="sec-title">底图与定位</h2>
+            <span class="sec-sub">BASE IMAGE · POSITION · COLOR · REGION</span>
           </div>
         </div>
         <div class="sec-body">
@@ -55,19 +68,9 @@
             </label>
           </div>
           <div id="imageInfo" class="file-info"></div>
-        </div>
-      </section>
 
-      <!-- ===== 02 定位与取色 ===== -->
-      <section class="sec">
-        <div class="sec-head">
-          <span class="sec-no">02</span>
-          <div class="sec-titles">
-            <h2 class="sec-title">定位与取色</h2>
-            <span class="sec-sub">POSITION · COLOR · REGION</span>
-          </div>
-        </div>
-        <div class="sec-body">
+          <div class="sub-divider"><span>定位 · 取色 · 区域</span></div>
+
           <div class="mode-switch">
             <button type="button" class="mode-btn active" data-mode="position">定位</button>
             <button type="button" class="mode-btn" data-mode="pick">取色</button>
@@ -165,7 +168,17 @@
               </div>
               <div class="form-row">
                 <label class="field">字重
-                  <input type="number" id="regionFontWeight" value="400" min="10" max="900" step="1">
+                  <select id="regionFontWeight">
+                    <option value="100">100 · 极细</option>
+                    <option value="200">200 · 特细</option>
+                    <option value="300">300 · 细</option>
+                    <option value="400" selected>400 · 常规</option>
+                    <option value="500">500 · 中等</option>
+                    <option value="600">600 · 半粗</option>
+                    <option value="700">700 · 粗</option>
+                    <option value="800">800 · 特粗</option>
+                    <option value="900">900 · 黑</option>
+                  </select>
                 </label>
                 <label class="field">样式
                   <select id="regionFontStyle">
@@ -200,10 +213,10 @@
         </div>
       </section>
 
-      <!-- ===== 03 文字样式 ===== -->
+      <!-- ===== 02 文字样式 ===== -->
       <section class="sec">
         <div class="sec-head">
-          <span class="sec-no">03</span>
+          <span class="sec-no">02</span>
           <div class="sec-titles">
             <h2 class="sec-title">文字样式</h2>
             <span class="sec-sub">TYPOGRAPHY</span>
@@ -228,7 +241,17 @@
               <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
             </label>
             <label class="field">字重
-              <input type="number" id="fontWeight" value="100" min="10" max="900" step="1" placeholder="10-900">
+              <select id="fontWeight">
+                <option value="100">100 · 极细</option>
+                <option value="200">200 · 特细</option>
+                <option value="300">300 · 细</option>
+                <option value="400" selected>400 · 常规</option>
+                <option value="500">500 · 中等</option>
+                <option value="600">600 · 半粗</option>
+                <option value="700">700 · 粗</option>
+                <option value="800">800 · 特粗</option>
+                <option value="900">900 · 黑</option>
+              </select>
               <span class="weight-status" id="fontWeightStatus"></span>
               <span class="error-msg" id="fontWeightError"></span>
               <span class="weight-hint" id="fontWeightHint"></span>
@@ -275,10 +298,10 @@
         </div>
       </section>
 
-      <!-- ===== 04 导入名单 ===== -->
+      <!-- ===== 03 导入名单 ===== -->
       <section class="sec">
         <div class="sec-head">
-          <span class="sec-no">04</span>
+          <span class="sec-no">03</span>
           <div class="sec-titles">
             <h2 class="sec-title">导入名单</h2>
             <span class="sec-sub">NAME LIST</span>
@@ -294,10 +317,10 @@
         </div>
       </section>
 
-      <!-- ===== 05 批量生成 ===== -->
+      <!-- ===== 04 批量生成 ===== -->
       <section class="sec">
         <div class="sec-head">
-          <span class="sec-no">05</span>
+          <span class="sec-no">04</span>
           <div class="sec-titles">
             <h2 class="sec-title">批量生成</h2>
             <span class="sec-sub">GENERATE · EXPORT</span>
