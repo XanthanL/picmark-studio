@@ -78,15 +78,10 @@ self.onmessage = async function (e) {
 
       const blob = await canvas.convertToBlob({ type: 'image/png' });
 
-      // Read blob as data URL synchronously in worker
-      const reader = new FileReaderSync();
-      const dataUrl = reader.readAsDataURL(blob);
-
       self.postMessage({
         success: true,
         index,
         blob,
-        dataUrl,
         text,
         width: cachedWidth,
         height: cachedHeight,

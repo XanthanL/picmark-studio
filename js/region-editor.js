@@ -270,6 +270,9 @@
       this.onActiveChange = options.onActiveChange || function () {};
       this._handlers = [];
       this._bindEvents();
+      // 写入初始空快照，使第一步操作也可被撤销
+      this.history.push(this._snapshot());
+      this.historyIndex = 0;
     }
 
     setScale(scale) {
@@ -685,7 +688,6 @@
     _computeFontSize(c, text, region, family, style, weight, cfg) {
       const availableW = Math.max(10, region.width - 10);
       const availableH = Math.max(10, region.height - 10);
-      const chars = Array.from(text);
       let low = cfg.minFontSize;
       let high = cfg.maxFontSize;
       let best = low;

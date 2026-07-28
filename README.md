@@ -12,7 +12,7 @@
 - 🔒 **图片不上传服务器**：所有图片处理均在浏览器内完成，名单与底图绝不出本机，隐私安全有保障。
 - 🎯 **可视化区域编辑器**：在画布上拖拽绘制文字区域，支持移动、缩放、撤销/重做，所见即所得。
 - 🔤 **自适应字号**：根据区域大小与文本长度自动二分搜索最佳字号，长名字也能完美填充。
-- 🧰 **预设模板一键套用**：内置 6 套常用场景模板，导入底图后选择预设即可生成区域，无需手动绘制。
+- 🧰 **预设模板一键套用**：内置 15 套常用场景模板，导入底图后选择预设即可生成区域，无需手动绘制。
 - 📝 **名单导入灵活**：支持直接粘贴文本（每行一个名字）或上传 `.txt` / `.csv` 文件。
 - 🎨 **水墨印章风格 UI**：宣纸暖白底 / 墨黑文字 / 朱砂红强调，契合印章、证书、邀请函等东方场景。
 - 🗂️ **批量打包下载**：生成结果自动打包为 ZIP 一次性下载，配合 Web Worker 不阻塞界面。
@@ -69,7 +69,7 @@ npx http-server -p 8080
 
 ## 预设模板
 
-内置 6 套预设模板，覆盖常见个性化图片场景。坐标均以图片宽高比例（0~1）存储，套用时会按实际图片尺寸自动换算为像素，因此同一套预设可适配任意比例的底图：
+内置 15 套预设模板，覆盖常见个性化图片场景。坐标均以图片宽高比例（0~1）存储，套用时会按实际图片尺寸自动换算为像素，因此同一套预设可适配任意比例的底图：
 
 | 预设名称 | 适用场景 | 区域构成 |
 |----------|----------|----------|
@@ -79,6 +79,15 @@ npx http-server -p 8080
 | 签到名牌 | 会议、团建签到 | 超大姓名 + 单位底部 |
 | 贺卡祝福 | 节日、生日贺卡 | 称呼居中 + 落款右下 |
 | 简约名片 | 个人、商务名片 | 姓名左上 + 职务右下 |
+| 会议桌牌 | 会议、论坛桌牌 | 超大姓名居中 |
+| 毕业证书 | 毕业、结业证书 | 姓名 + 专业 + 年份 |
+| 婚礼席位 | 婚宴席位卡 | 桌号居上 + 姓名居下 |
+| 活动海报 | 嘉宾宣传海报 | 嘉宾名 + 职位 |
+| 生日贺卡 | 生日祝福卡 | 寿星名 + 祝福语 |
+| 工位铭牌 | 办公工位铭牌 | 姓名 + 部门 |
+| 考试准考证 | 考试、测评准考证 | 姓名 + 考号 + 考场 |
+| 节日福卡 | 新春、节日福卡 | 福字 + 称呼 |
+| 运动号码布 | 赛事号码布 | 号码 + 姓名 + 队伍 |
 
 > 想新增预设？欢迎参考 [CONTRIBUTING.md](./CONTRIBUTING.md) 中「贡献预设模板」一节，在 `js/region-editor.js` 的 `PRESETS` 数组中添加即可，这是最简单的贡献方式。
 
@@ -117,7 +126,7 @@ npx http-server -p 8080
 - 🔒 **Images never leave your browser** — all processing happens locally; templates and name lists are never uploaded, keeping your data private.
 - 🎯 **Visual region editor** — drag to draw text regions on the canvas with move, resize, undo/redo support. What you see is what you get.
 - 🔤 **Adaptive font sizing** — a binary search automatically picks the best font size for each region, so even long names fill the area perfectly.
-- 🧰 **One-click preset templates** — 6 built-in presets for common scenarios; pick one after uploading your template and the regions are generated for you.
+- 🧰 **One-click preset templates** — 15 built-in presets for common scenarios; pick one after uploading your template and the regions are generated for you.
 - 📝 **Flexible name list import** — paste names directly (one per line) or upload a `.txt` / `.csv` file.
 - 🎨 **Ink-stamp aesthetic UI** — warm xuan-paper white, ink black, and cinnabar red, fitting stamp, certificate, and invitation scenarios.
 - 🗂️ **Batch ZIP download** — results are zipped and downloaded in one go, with generation offloaded to a Web Worker so the UI never freezes.
@@ -174,7 +183,7 @@ You can also open `index.html` directly in a browser; most features work, but so
 
 ## Preset Templates
 
-Six built-in presets cover common personalized-image scenarios. Coordinates are stored as ratios (0~1) of the image dimensions and converted to pixels when applied, so a single preset works with templates of any aspect ratio:
+Fifteen built-in presets cover common personalized-image scenarios. Coordinates are stored as ratios (0~1) of the image dimensions and converted to pixels when applied, so a single preset works with templates of any aspect ratio:
 
 | Preset | Use case | Regions |
 |--------|----------|---------|
@@ -184,6 +193,15 @@ Six built-in presets cover common personalized-image scenarios. Coordinates are 
 | Sign-in Nameplate (签到名牌) | Conference, team-building sign-in | Large name + organization at bottom |
 | Greeting Card (贺卡祝福) | Holiday, birthday cards | Salutation centered + signature bottom-right |
 | Minimal Card (简约名片) | Personal, business cards | Name top-left + title bottom-right |
+| Table Tent (会议桌牌) | Conference, forum table tents | Extra-large centered name |
+| Diploma (毕业证书) | Graduation certificates | Name + major + year |
+| Wedding Seat (婚礼席位) | Wedding seat cards | Table number on top + name below |
+| Event Poster (活动海报) | Speaker promo posters | Guest name + title |
+| Birthday Card (生日贺卡) | Birthday greeting cards | Name + wishes |
+| Desk Nameplate (工位铭牌) | Office desk nameplates | Name + department |
+| Exam Pass (考试准考证) | Exam admission tickets | Name + exam ID + room |
+| Festival Card (节日福卡) | New Year / festival cards | "福" character + salutation |
+| Race Bib (运动号码布) | Sports event bibs | Number + name + team |
 
 > Want to add a preset? See the "Contributing a Preset Template" section in [CONTRIBUTING.md](./CONTRIBUTING.md) — just add an entry to the `PRESETS` array in `js/region-editor.js`. It's the easiest way to contribute.
 

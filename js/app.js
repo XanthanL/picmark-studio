@@ -41,6 +41,8 @@
     fontFamily: document.getElementById('fontFamily'),
     fontWeight: document.getElementById('fontWeight'),
     fontWeightError: document.getElementById('fontWeightError'),
+    fontWeightStatus: document.getElementById('fontWeightStatus'),
+    fontWeightHint: document.getElementById('fontWeightHint'),
     quality: document.getElementById('quality'),
     fontInput: document.getElementById('fontInput'),
     fontName: document.getElementById('fontName'),
@@ -210,11 +212,6 @@
     updatePerfMonitor();
   }
 
-  function stopPerfMonitor() {
-    if (!els.perfPanel) return;
-    // keep visible to show final stats
-  }
-
   // ===== Image Compression =====
   async function compressImage(file, quality) {
     return new Promise((resolve, reject) => {
@@ -376,13 +373,18 @@
       state.regionEditor.draw();
 
       // Draw text preview inside regions
+      // Region coordinates are in work-image pixels, so scale the context
+      // to keep the preview consistent with the final output (WYSIWYG)
       if (state.mode === 'region') {
         const active = state.regionEditor.getActiveRegion();
         const sample = active ? getRegionPreviewText(active) : I18n.t('preview.text');
+        ctx.save();
+        ctx.scale(scale, scale);
         state.regionEditor.getRegions().forEach((region) => {
           const text = getRegionPreviewText(region) || sample;
           state.regionEditor.fitAndRender(ctx, text, region);
         });
+        ctx.restore();
       }
     }
 
@@ -391,6 +393,33 @@
     }
 
     updateMarker();
+  }
+
+  // 按分隔符切分一行，支持双引号包裹的字段（字段内可含分隔符与转义引号 ""）
+  function splitLine(line, delim) {
+    var out = [];
+    var cur = '';
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') { cur += '"'; i++; }
+          else inQuotes = false;
+        } else {
+          cur += ch;
+        }
+      } else if (ch === '"' && cur === '') {
+        inQuotes = true;
+      } else if (ch === delim) {
+        out.push(cur);
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
   }
 
   // 解析名单：支持纯文本（每行一个名字）和 CSV（首行表头，逗号分隔）
@@ -405,8 +434,8 @@
 
     var isCSV = false;
     if (delim && lines.length >= 2) {
-      var colCount1 = lines[0].split(delim).length;
-      var colCount2 = lines[1].split(delim).length;
+      var colCount1 = splitLine(lines[0], delim).length;
+      var colCount2 = splitLine(lines[1], delim).length;
       if (colCount1 >= 2 && colCount1 === colCount2) isCSV = true;
     }
 
@@ -417,10 +446,10 @@
       };
     }
 
-    var headers = lines[0].split(delim).map(function (h) { return h.trim(); });
+    var headers = splitLine(lines[0], delim).map(function (h) { return h.trim(); });
     var rows = [];
     for (var i = 1; i < lines.length; i++) {
-      var values = lines[i].split(delim);
+      var values = splitLine(lines[i], delim);
       var row = {};
       headers.forEach(function (h, idx) { row[h] = (values[idx] || '').trim(); });
       rows.push(row);
@@ -815,13 +844,12 @@
     });
   }
 
-  function drawRegions(c, row) {
+  function drawRegions(c, row, columns) {
     if (!state.regionEditor) return;
-    var data = parseNameData();
     state.regionEditor.getRegions().forEach((region) => {
       var text;
       if (region.config.useNameList) {
-        var col = region.config.dataColumn || data.columns[0];
+        var col = region.config.dataColumn || columns[0];
         text = row[col] || '';
       } else {
         text = region.config.fixedText || '';
@@ -831,7 +859,7 @@
   }
 
   // ===== Main Thread Fallback =====
-  async function generateOneMainThread(row, nameText, options) {
+  async function generateOneMainThread(row, nameText, options, columns) {
     return new Promise((resolve) => {
       // Yield to main thread to keep UI responsive, even when tab is backgrounded
       setTimeout(() => {
@@ -843,23 +871,28 @@
         c.drawImage(state.workBitmap, 0, 0, state.outputWidth, state.outputHeight);
 
         if (state.regionEditor && state.regionEditor.getRegions().length > 0) {
-          drawRegions(c, row);
+          drawRegions(c, row, columns);
         } else {
           drawPointText(c, nameText, options);
         }
 
         canvas.toBlob((blob) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            resolve({ blob, dataUrl: reader.result, text: nameText, width: state.outputWidth, height: state.outputHeight });
-          };
-          reader.readAsDataURL(blob);
+          resolve({ blob, text: nameText, width: state.outputWidth, height: state.outputHeight });
         }, 'image/png');
       }, 0);
     });
   }
 
   // ===== Batch Generate =====
+  // 缩略图使用 Object URL，下一次生成前需释放
+  let thumbUrls = [];
+
+  function clearThumbnails() {
+    thumbUrls.forEach((u) => URL.revokeObjectURL(u));
+    thumbUrls = [];
+    els.previewList.innerHTML = '';
+  }
+
   els.generateBtn.addEventListener('click', async () => {
     if (state.isGenerating) return;
 
@@ -886,14 +919,16 @@
     }
 
     els.progressBox.style.display = 'flex';
-    els.previewList.innerHTML = '';
+    clearThumbnails();
     state.perf.startTime = performance.now();
 
     try {
       const zip = new JSZip();
       const total = rows.length;
       const options = getGenerationOptions();
-      const firstCol = nameData.columns[0];
+      const columns = nameData.columns;
+      const firstCol = columns[0];
+      const usedNames = Object.create(null);
 
       console.log('[PicMark] Generation options:', options);
       console.log('[PicMark] Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
@@ -921,20 +956,29 @@
           if (workerInstance) {
             result = await generateOneWithWorker(workerInstance, nameText, i);
           } else {
-            result = await generateOneMainThread(row, nameText, options);
+            result = await generateOneMainThread(row, nameText, options, columns);
           }
         } catch (err) {
           console.error('[PicMark] Generation error for', nameText, ':', err.message);
           // Fallback to main thread on worker error
-          result = await generateOneMainThread(row, nameText, options);
+          result = await generateOneMainThread(row, nameText, options, columns);
         }
 
-        const safeName = nameText.replace(/[\\/:*?"<>|]/g, '_');
+        // 重名时追加序号，避免 ZIP 内同名文件互相覆盖
+        let safeName = nameText.replace(/[\\/:*?"<>|]/g, '_');
+        if (usedNames[safeName]) {
+          usedNames[safeName]++;
+          safeName = safeName + '_' + usedNames[safeName];
+        } else {
+          usedNames[safeName] = 1;
+        }
         zip.file(`${safeName}.png`, result.blob);
 
         if (i < 9) {
+          const thumbUrl = URL.createObjectURL(result.blob);
+          thumbUrls.push(thumbUrl);
           const thumb = document.createElement('img');
-          thumb.src = result.dataUrl;
+          thumb.src = thumbUrl;
           thumb.alt = nameText;
           els.previewList.appendChild(thumb);
         }
@@ -950,7 +994,8 @@
 
       terminateWorker();
 
-      const content = await zip.generateAsync({ type: 'blob' });
+      // PNG 已经过压缩，再次 deflate 收益微小且耗时，直接存储可大幅提速打包
+      const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
       const timestamp = formatTimestamp(new Date());
       saveAs(content, I18n.t('generate.zipName', { timestamp: timestamp }) + '.zip');
 
@@ -1011,7 +1056,13 @@
     regions.forEach((r, idx) => {
       const item = document.createElement('div');
       item.className = 'region-item' + (r.id === state.regionEditor.activeId ? ' active' : '');
-      item.innerHTML = `<span>${I18n.t('region.label')} ${idx + 1} · ${r.width}×${r.height}</span><span>${r.config.useNameList ? (r.config.dataColumn || state.nameColumns[0] || I18n.t('region.label')) : I18n.t('region.fixed')}</span>`;
+      // 用 textContent 构建，避免 CSV 表头等外部文本注入 HTML
+      const left = document.createElement('span');
+      left.textContent = `${I18n.t('region.label')} ${idx + 1} · ${r.width}×${r.height}`;
+      const right = document.createElement('span');
+      right.textContent = r.config.useNameList ? (r.config.dataColumn || state.nameColumns[0] || I18n.t('region.label')) : I18n.t('region.fixed');
+      item.appendChild(left);
+      item.appendChild(right);
       item.addEventListener('click', () => state.regionEditor.setActive(r.id));
       els.regionList.appendChild(item);
     });
