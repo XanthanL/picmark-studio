@@ -7,7 +7,7 @@
 本项目为纯静态站点，无需安装任何依赖。克隆仓库后任选一种方式启动本地服务器即可：
 
 ```bash
-git clone https://github.com/your-username/picmark-studio.git
+git clone https://github.com/XanthanL/picmark-studio.git
 cd picmark-studio
 
 # 方式一：Python（推荐）
@@ -101,7 +101,7 @@ var PRESETS = [
    ```
 3. **添加上游** 以便同步最新代码：
    ```bash
-   git remote add upstream https://github.com/your-username/picmark-studio.git
+   git remote add upstream https://github.com/XanthanL/picmark-studio.git
    ```
 4. **新建分支**，分支名请用英文并简明描述改动：
    ```bash

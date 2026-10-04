@@ -2,7 +2,7 @@
 
 > 纯前端、零部署的浏览器内批量个性化图片生成工具 —— 上传底图、标记位置、导入名单，一键生成并打包下载 ZIP。
 
-🟢 **在线 Demo**：<https://your-username.github.io/picmark-studio/>
+🟢 **在线 Demo**：<https://xanthanl.github.io/picmark-studio/>
 
 ---
 
@@ -48,7 +48,7 @@
 **方式一：Python 内置服务器（推荐）**
 
 ```bash
-git clone https://github.com/your-username/picmark-studio.git
+git clone https://github.com/XanthanL/picmark-studio.git
 cd picmark-studio
 python -m http.server 8080
 ```
@@ -116,7 +116,7 @@ npx http-server -p 8080
 
 > A purely front-end, zero-deployment, in-browser tool for batch-generating personalized images — upload a template, mark text regions, import a name list, and download all results as a ZIP in one click.
 
-🟢 **Live Demo**: <https://your-username.github.io/picmark-studio/>
+🟢 **Live Demo**: <https://xanthanl.github.io/picmark-studio/>
 
 ---
 
@@ -162,7 +162,7 @@ This is a static site with no dependencies to install. Pick any of the following
 **Option 1: Python built-in server (recommended)**
 
 ```bash
-git clone https://github.com/your-username/picmark-studio.git
+git clone https://github.com/XanthanL/picmark-studio.git
 cd picmark-studio
 python -m http.server 8080
 ```
