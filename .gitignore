@@ -1,0 +1,7 @@
+# 本地调试产物：只入库可复跑的校验/探针脚本，其余一律忽略
+.workbuddy/*
+!.workbuddy/*.cjs
+
+# 根目录临时探针页
+probe*.html
+probe*.json

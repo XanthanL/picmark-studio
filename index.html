@@ -4,357 +4,420 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>图印工坊 · PicMark Studio</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="纯浏览器内的批量图片生成工具：上传底图、叠加文字与 PNG 水印图层、导入名单，一键生成并打包下载。图片全程不出本机。">
+  <meta name="theme-color" content="#e9e9e9">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Crect x='7' y='12.5' width='18' height='7' rx='3.5' fill='%23fff'/%3E%3Crect x='9.5' y='14' width='13' height='4' rx='2' fill='%23111'/%3E%3C/svg%3E">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="图印工坊 · PicMark Studio">
+  <meta property="og:title" content="图印工坊 · PicMark Studio">
+  <meta property="og:description" content="上传底图、叠加文字与 PNG 水印图层、导入名单，一键批量生成个性化图片并打包下载。图片全程不出本机。">
+  <meta property="og:url" content="https://xanthanl.github.io/picmark-studio/">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
-  <div class="app">
 
-    <!-- ===== Hero ===== -->
-    <header class="hero">
-      <div class="hero-inner">
-        <div class="hero-left">
-          <div class="hero-seal" aria-hidden="true">印</div>
-          <p class="hero-kicker" data-i18n="hero.kicker">— PICMARK STUDIO</p>
-          <h1 class="hero-title" data-i18n-html="hero.title">图印<br>工坊</h1>
-          <p class="hero-desc" data-i18n="hero.desc">上传底图，标记文字位置，导入名单，一键生成批量个性化图片。</p>
+  <!-- ===== 顶栏 ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <rect x="7" y="12.5" width="18" height="7" rx="3.5" fill="currentColor"></rect>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <b class="brand-name">图印工坊</b>
+        <em class="brand-sub">PICMARK STUDIO</em>
+      </span>
+    </div>
+
+    <nav class="steps" aria-label="步骤">
+      <button type="button" class="step is-active" data-step="01" data-target="cardCanvas"><i>01</i><span data-i18n="step.1">底图</span></button>
+      <button type="button" class="step" data-step="02" data-target="cardNames"><i>02</i><span data-i18n="step.2">名单</span></button>
+      <button type="button" class="step" data-step="03" data-target="cardGenerate"><i>03</i><span data-i18n="step.3">生成</span></button>
+    </nav>
+
+    <div class="top-actions">
+      <button type="button" class="icon-btn" id="themeToggle" data-i18n-title="theme.toggle" title="切换明暗主题">
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path>
+        </svg>
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3L19 19M19 5l-1.7 1.7M6.7 17.3L5 19"></path>
+        </svg>
+      </button>
+      <button type="button" class="icon-btn" id="guideBtn" data-i18n-title="guide.restart" title="重新查看引导">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M9.6 9.4a2.6 2.6 0 1 1 3.4 2.5c-.7.3-1 .9-1 1.6v.4"></path>
+          <circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"></circle>
+        </svg>
+      </button>
+      <button type="button" class="lang-toggle" onclick="I18n.toggle()" data-i18n="lang.toggle">EN</button>
+    </div>
+  </header>
+
+  <main class="studio">
+
+    <!-- ===== 工具条：编辑「当前选中文字图层」的样式 ===== -->
+    <section class="rail">
+
+      <div class="rail-group">
+        <span class="rail-label" data-i18n="group.source">底图</span>
+        <label class="upload-btn" id="dropZone">
+          <input type="file" id="templateInput" accept="image/*" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <path d="M21 15l-5-5L5 21"></path>
+          </svg>
+          <span data-i18n="upload.image">上传底图</span>
+        </label>
+        <span id="imageInfo" class="file-info"></span>
+      </div>
+
+      <div class="rail-group">
+        <span class="rail-label" data-i18n="label.fontFamily">字体</span>
+        <select id="fontFamily" data-font-preview>
+          <optgroup label="中文字体" data-i18n-label="font.group.zh">
+            <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+            <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
+            <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
+            <option value="SimSun, Songti SC, serif">宋体</option>
+            <option value="KaiTi, Kaiti SC, serif">楷体</option>
+            <option value="FangSong, STFangsong, serif">仿宋</option>
+            <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
+            <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
+            <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
+            <option value="STLiti, LiSu, serif">华文隶书</option>
+            <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
+          </optgroup>
+          <optgroup label="英文字体" data-i18n-label="font.group.en">
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Helvetica, Arial, sans-serif">Helvetica</option>
+            <option value="Georgia, Times New Roman, serif">Georgia</option>
+            <option value="Times New Roman, Times, serif">Times New Roman</option>
+            <option value="Verdana, sans-serif">Verdana</option>
+            <option value="Tahoma, sans-serif">Tahoma</option>
+            <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+            <option value="Courier New, monospace">Courier New</option>
+            <option value="Impact, sans-serif">Impact</option>
+            <option value="Comic Sans MS, cursive">Comic Sans MS</option>
+          </optgroup>
+          <optgroup label="开源网络字体" data-i18n-label="font.group.web">
+            <option value="web:mashanzheng">马善政毛笔楷书</option>
+            <option value="web:zhimangxing">志莽行书</option>
+            <option value="web:liujianmaocao">柳建草书</option>
+            <option value="web:longcang">龙藏体</option>
+            <option value="web:zcoolxiaowei">站酷小薇</option>
+            <option value="web:zcoolqingke">站酷庆科黄油体</option>
+            <option value="web:notoserifsc">思源宋体</option>
+          </optgroup>
+          <optgroup label="其他" data-i18n-label="font.group.other">
+            <option value="sans-serif">系统默认</option>
+            <option value="custom">自定义字体</option>
+          </optgroup>
+        </select>
+        <div class="pill-group" id="weightGroup">
+          <button type="button" class="pill" data-weight="400">常规</button>
+          <button type="button" class="pill" data-weight="500">中等</button>
+          <button type="button" class="pill" data-weight="700">粗</button>
+          <button type="button" class="pill" data-weight="900">黑</button>
         </div>
-        <div class="hero-right">
-          <p class="hero-right-label" data-i18n="hero.scenes">应用场景 · USE CASES</p>
-          <ul class="hero-scenes">
-            <li><span class="scene-no">壹</span><span data-i18n="scene.1">工牌 · 胸牌印制</span></li>
-            <li><span class="scene-no">贰</span><span data-i18n="scene.2">证书 · 奖状生成</span></li>
-            <li><span class="scene-no">叁</span><span data-i18n="scene.3">活动签到名牌</span></li>
-            <li><span class="scene-no">肆</span><span data-i18n="scene.4">个性化邀请函</span></li>
-            <li><span class="scene-no">伍</span><span data-i18n="scene.5">团建纪念图</span></li>
-            <li><span class="scene-no">陆</span><span data-i18n="scene.6">贺卡 · 名片</span></li>
-          </ul>
+        <select id="fontWeight" data-native hidden>
+          <option value="100">100</option>
+          <option value="200">200</option>
+          <option value="300">300</option>
+          <option value="400" selected>400</option>
+          <option value="500">500</option>
+          <option value="600">600</option>
+          <option value="700">700</option>
+          <option value="800">800</option>
+          <option value="900">900</option>
+        </select>
+        <div class="seg-group" id="styleGroup">
+          <button type="button" class="seg seg-i" data-style="italic" data-i18n-title="style.italic" title="斜体">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M15 5h-5M14 19H9M14 5l-3 14"></path>
+            </svg>
+          </button>
+          <button type="button" class="seg seg-u" data-style="underline" data-i18n-title="style.underline" title="下划线">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"></path>
+            </svg>
+          </button>
+        </div>
+        <input type="checkbox" id="textItalic" hidden>
+        <input type="checkbox" id="textUnderline" hidden>
+        <label class="field full custom-font" style="display:none;">
+          <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
+          <span class="secondary-btn" data-i18n="label.uploadFont">上传字体文件</span>
+          <span id="fontName" class="file-info"></span>
+        </label>
+        <span id="webFontStatus" class="file-info"></span>
+      </div>
+
+      <div class="rail-group">
+        <span class="rail-label" data-i18n="group.layout">排版</span>
+        <div class="seg-group" id="alignGroup">
+          <button type="button" class="seg" data-align="left" data-i18n-title="align.left" title="左对齐">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 6h16M4 11h10M4 16h13"></path>
+            </svg>
+          </button>
+          <button type="button" class="seg" data-align="center" data-i18n-title="align.center" title="居中">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 6h16M7 11h10M6 16h12"></path>
+            </svg>
+          </button>
+          <button type="button" class="seg" data-align="right" data-i18n-title="align.right" title="右对齐">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 6h16M10 11h10M7 16h13"></path>
+            </svg>
+          </button>
+        </div>
+        <select id="textAlign" data-native hidden>
+          <option value="left" data-i18n="align.left">左对齐</option>
+          <option value="center" selected data-i18n="align.center">居中</option>
+          <option value="right" data-i18n="align.right">右对齐</option>
+        </select>
+
+        <span class="mini-field">
+          <span class="mini-label" data-i18n="label.fontSize">字号</span>
+          <span class="slider-row">
+            <input type="range" id="fontSizeRange" min="12" max="300" step="5" value="60">
+            <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
+          </span>
+        </span>
+
+        <span class="mini-field">
+          <span class="mini-label" data-i18n="label.letterSpacing">字间距</span>
+          <span class="slider-row">
+            <input type="range" id="letterSpacingRange" min="-10" max="40" step="1" value="0">
+            <input type="number" id="textLetterSpacing" value="0" min="-10" max="40" step="1">
+          </span>
+        </span>
+
+        <label class="narrow-field"><span data-i18n="label.maxWidth">最大宽度</span>
+          <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
+        </label>
+        <span class="weight-status" id="fontWeightStatus"></span>
+        <span class="error-msg" id="fontWeightError"></span>
+        <span class="weight-hint" id="fontWeightHint"></span>
+      </div>
+
+      <div class="rail-group">
+        <span class="rail-label" data-i18n="group.fx">特效</span>
+
+        <div class="fx-item">
+          <input type="checkbox" id="strokeEnabled" class="fx-check" hidden>
+          <label class="switch" for="strokeEnabled">
+            <span class="switch-track"><span class="switch-knob"></span></span>
+            <span class="switch-label" data-i18n="fx.stroke">描边</span>
+          </label>
+          <div class="fx-params">
+            <span class="slider-row">
+              <input type="range" id="strokeWidthRange" min="1" max="20" step="1" value="3">
+              <input type="number" id="strokeWidth" value="3" min="1" max="20" step="1">
+            </span>
+            <span class="picker" data-i18n-title="fx.strokeColor" title="描边颜色">
+              <input type="color" id="strokeColor" value="#FFFFFF" aria-label="描边颜色">
+            </span>
+          </div>
+        </div>
+
+        <div class="fx-item">
+          <input type="checkbox" id="shadowEnabled" class="fx-check" hidden>
+          <label class="switch" for="shadowEnabled">
+            <span class="switch-track"><span class="switch-knob"></span></span>
+            <span class="switch-label" data-i18n="fx.shadow">投影</span>
+          </label>
+          <div class="fx-params">
+            <span class="slider-row">
+              <input type="range" id="shadowBlurRange" min="2" max="40" step="1" value="12">
+              <input type="number" id="shadowBlur" value="12" min="2" max="40" step="1">
+            </span>
+          </div>
         </div>
       </div>
-      <button type="button" class="lang-toggle" onclick="I18n.toggle()" data-i18n="lang.toggle">EN</button>
-    </header>
 
-    <main class="container">
+      <div class="rail-group">
+        <span class="rail-label" data-i18n="group.color">颜色</span>
+        <div class="swatches" id="colorSwatches">
+          <button type="button" class="swatch" data-color="#000000" style="--c:#000000" data-i18n-title="color.ink" title="纯黑"></button>
+          <button type="button" class="swatch" data-color="#333333" style="--c:#333333" data-i18n-title="color.slate" title="深灰"></button>
+          <button type="button" class="swatch" data-color="#666666" style="--c:#666666" data-i18n-title="color.gray" title="中灰"></button>
+          <button type="button" class="swatch" data-color="#999999" style="--c:#999999" data-i18n-title="color.mid" title="浅灰"></button>
+          <button type="button" class="swatch" data-color="#CCCCCC" style="--c:#CCCCCC" data-i18n-title="color.silver" title="银灰"></button>
+          <button type="button" class="swatch" data-color="#FFFFFF" style="--c:#FFFFFF" data-i18n-title="color.white" title="白"></button>
+        </div>
+        <span class="picker" data-i18n-title="label.color" title="自定义颜色">
+          <input type="color" id="fontColor" value="#111111" aria-label="自定义颜色">
+        </span>
+      </div>
+    </section>
 
-      <!-- ===== 01 底图与文字 ===== -->
-      <section class="sec">
-        <div class="sec-head">
-          <span class="sec-no">01</span>
-          <div class="sec-titles">
-            <h2 class="sec-title" data-i18n="sec.01.title">底图与文字</h2>
+    <!-- ===== 画布舞台 ===== -->
+    <section class="stage" id="cardCanvas">
+      <div class="stage-head">
+        <div class="mode-switch">
+          <button type="button" class="mode-btn active" data-tool="select" data-i18n="tool.select">选择</button>
+          <button type="button" class="mode-btn" data-tool="point" data-i18n="tool.point">文字</button>
+          <button type="button" class="mode-btn" data-tool="region" data-i18n="tool.region">区域</button>
+          <button type="button" class="mode-btn" data-tool="image" data-i18n="tool.image">水印</button>
+          <button type="button" class="mode-btn" data-tool="pick" data-i18n="mode.pick">取色</button>
+          <div class="color-badge" title="当前文字颜色" data-i18n-title="colorBadge.title">
+            <span id="pickedColor" class="color-swatch"></span>
+            <span id="colorValue" class="color-value">#111111</span>
           </div>
         </div>
-        <div class="sec-body">
-          <label class="drop-zone" id="dropZone">
-            <input type="file" id="templateInput" accept="image/*" hidden>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-              <rect x="3" y="3" width="18" height="18" rx="0"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <path d="M21 15l-5-5L5 21"></path>
-            </svg>
-            <span class="drop-title" data-i18n="drop.title">点击或拖拽图片至此</span>
-            <span class="drop-sub" data-i18n="drop.sub">JPG · PNG · WEBP</span>
-          </label>
-          <div class="form-row quality-row">
-            <label class="field full"><span data-i18n="label.quality">输出质量</span>
-              <select id="quality">
-                <option value="original" data-i18n="quality.original">原图尺寸</option>
-                <option value="high" selected data-i18n="quality.high">高清（最大边 2048）</option>
-                <option value="medium" data-i18n="quality.medium">标准（最大边 1280）</option>
-                <option value="low" data-i18n="quality.low">快速（最大边 800）</option>
-              </select>
-            </label>
-          </div>
-          <div id="imageInfo" class="file-info"></div>
 
-          <div class="sub-divider"><span data-i18n="divider.position">定位与区域</span></div>
-
-          <div class="mode-switch">
-            <button type="button" class="mode-btn active" data-mode="position" data-i18n="mode.position">定位</button>
-            <button type="button" class="mode-btn" data-mode="pick" data-i18n="mode.pick">取色</button>
-            <button type="button" class="mode-btn" data-mode="region" data-i18n="mode.region">区域</button>
-            <div class="color-badge" title="当前文字颜色" data-i18n-title="colorBadge.title">
-              <span id="pickedColor" class="color-swatch"></span>
-              <span id="colorValue" class="color-value">#C89B5C</span>
-            </div>
-          </div>
-          <p class="hint" id="modeHint" data-i18n="modeHint.position">点击图片，"定位位置"文字即为最终文字左对齐起始位置的实时预览</p>
-          <div class="canvas-wrapper" id="canvasWrapper">
-            <canvas id="previewCanvas"></canvas>
-            <div id="marker" class="marker" data-i18n="marker.text">定位位置</div>
-          </div>
-          <div class="form-row compact" id="pointControls">
-            <label class="coord">X<input type="number" id="posX" value="540"></label>
-            <label class="coord">Y<input type="number" id="posY" value="640"></label>
-          </div>
-
-          <!-- Region controls -->
-          <div id="regionControls" style="display:none;">
-            <div class="region-toolbar">
-              <select id="regionPreset" class="preset-select">
-                <option value="" data-i18n="region.preset">套用预设…</option>
-              </select>
-              <button type="button" id="regionCreate" class="btn-small" data-i18n="region.create">新建区域</button>
-              <button type="button" id="regionDelete" class="btn-small btn-danger" data-i18n="region.delete">删除</button>
-              <button type="button" id="regionUndo" class="btn-small" data-i18n="region.undo">撤销</button>
-              <button type="button" id="regionRedo" class="btn-small" data-i18n="region.redo">重做</button>
-              <button type="button" id="regionSave" class="btn-small" data-i18n="region.save">保存配置</button>
-              <button type="button" id="regionLoad" class="btn-small" data-i18n="region.load">加载配置</button>
-              <input type="file" id="regionConfigInput" accept=".json" hidden>
-            </div>
-            <div id="regionList" class="region-list"></div>
-            <div id="regionConfig" class="region-config" style="display:none;">
-              <div class="form-row">
-                <label class="field full"><span data-i18n="label.textSource">文本内容</span>
-                  <select id="regionTextSource">
-                    <option value="name" data-i18n="textSource.name">从名单读取</option>
-                    <option value="fixed" data-i18n="textSource.fixed">固定文本</option>
-                  </select>
-                </label>
-              </div>
-              <div class="form-row" id="regionDataColumnRow" style="display:none;">
-                <label class="field full"><span data-i18n="label.dataColumn">数据列</span>
-                  <select id="regionDataColumn">
-                    <option value="" data-i18n="dataColumn.default">默认列</option>
-                  </select>
-                </label>
-              </div>
-              <div class="form-row" id="regionFixedTextRow" style="display:none;">
-                <label class="field full"><span data-i18n="label.regionFixedText">固定文本</span>
-                  <input type="text" id="regionFixedText" data-i18n-placeholder="placeholder.fixedText" placeholder="输入固定文字">
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.regionFont">字体</span>
-                  <select id="regionFontFamily">
-                    <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
-                    <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
-                    <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
-                    <option value="SimSun, Songti SC, serif">宋体</option>
-                    <option value="KaiTi, Kaiti SC, serif">楷体</option>
-                    <option value="FangSong, STFangsong, serif">仿宋</option>
-                    <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
-                    <option value="Arial, sans-serif">Arial</option>
-                    <option value="Helvetica, Arial, sans-serif">Helvetica</option>
-                    <option value="Georgia, Times New Roman, serif">Georgia</option>
-                    <option value="Times New Roman, Times, serif">Times New Roman</option>
-                    <option value="Verdana, sans-serif">Verdana</option>
-                    <option value="Tahoma, sans-serif">Tahoma</option>
-                    <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                    <option value="Courier New, monospace">Courier New</option>
-                    <option value="Impact, sans-serif">Impact</option>
-                    <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-                  </select>
-                </label>
-                <label class="field"><span data-i18n="label.regionColor">颜色</span>
-                  <input type="color" id="regionColor" value="#000000">
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.opacity">不透明度</span>
-                  <input type="range" id="regionOpacity" min="0" max="1" step="0.05" value="1">
-                </label>
-                <label class="field"><span data-i18n="label.rotation">旋转</span>
-                  <input type="number" id="regionRotation" value="0" min="0" max="360" step="1">
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.alignH">水平对齐</span>
-                  <select id="regionAlignH">
-                    <option value="left" data-i18n="align.left">左对齐</option>
-                    <option value="center" selected data-i18n="align.center">居中</option>
-                    <option value="right" data-i18n="align.right">右对齐</option>
-                  </select>
-                </label>
-                <label class="field"><span data-i18n="label.alignV">垂直对齐</span>
-                  <select id="regionAlignV">
-                    <option value="top" data-i18n="alignV.top">顶部</option>
-                    <option value="middle" selected data-i18n="alignV.middle">居中</option>
-                    <option value="bottom" data-i18n="alignV.bottom">底部</option>
-                  </select>
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.fontWeight">字重</span>
-                  <select id="regionFontWeight">
-                    <option value="100">100 · 极细</option>
-                    <option value="200">200 · 特细</option>
-                    <option value="300">300 · 细</option>
-                    <option value="400" selected>400 · 常规</option>
-                    <option value="500">500 · 中等</option>
-                    <option value="600">600 · 半粗</option>
-                    <option value="700">700 · 粗</option>
-                    <option value="800">800 · 特粗</option>
-                    <option value="900">900 · 黑</option>
-                  </select>
-                </label>
-                <label class="field"><span data-i18n="label.fontStyle">样式</span>
-                  <select id="regionFontStyle">
-                    <option value="normal" selected data-i18n="fontStyle.normal">常规</option>
-                    <option value="italic" data-i18n="fontStyle.italic">斜体</option>
-                  </select>
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.lineHeight">行高</span>
-                  <input type="number" id="regionLineHeight" value="1.2" min="0.5" max="3" step="0.1">
-                </label>
-                <label class="field"><span data-i18n="label.letterSpacing">字间距</span>
-                  <input type="number" id="regionLetterSpacing" value="0" min="-10" max="100" step="1">
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field"><span data-i18n="label.minFont">最小字号</span>
-                  <input type="number" id="regionMinFont" value="12" min="8" max="100" step="1">
-                </label>
-                <label class="field"><span data-i18n="label.maxFont">最大字号</span>
-                  <input type="number" id="regionMaxFont" value="300" min="12" max="500" step="1">
-                </label>
-              </div>
-              <div class="form-row">
-                <label class="field full">
-                  <input type="checkbox" id="regionAutoFit" checked> <span data-i18n="label.autoFit">自动适配字号</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="sub-divider"><span data-i18n="divider.typography">文字样式</span></div>
-
-          <div class="form-grid">
-            <label class="field"><span data-i18n="label.fontSize">字号</span>
-              <input type="number" id="fontSize" value="60" min="12" max="300" step="5">
-            </label>
-            <label class="field"><span data-i18n="label.color">颜色</span>
-              <input type="color" id="fontColor" value="#C89B5C">
-            </label>
-            <label class="field"><span data-i18n="label.align">对齐</span>
-              <select id="textAlign">
-                <option value="left" data-i18n="align.left">左对齐</option>
-                <option value="center" selected data-i18n="align.center">居中</option>
-                <option value="right" data-i18n="align.right">右对齐</option>
-              </select>
-            </label>
-            <label class="field"><span data-i18n="label.maxWidth">最大宽度</span>
-              <input type="number" id="maxWidth" value="400" min="0" placeholder="px">
-            </label>
-            <label class="field"><span data-i18n="label.fontWeight">字重</span>
-              <select id="fontWeight">
-                <option value="100">100 · 极细</option>
-                <option value="200">200 · 特细</option>
-                <option value="300">300 · 细</option>
-                <option value="400" selected>400 · 常规</option>
-                <option value="500">500 · 中等</option>
-                <option value="600">600 · 半粗</option>
-                <option value="700">700 · 粗</option>
-                <option value="800">800 · 特粗</option>
-                <option value="900">900 · 黑</option>
-              </select>
-              <span class="weight-status" id="fontWeightStatus"></span>
-              <span class="error-msg" id="fontWeightError"></span>
-              <span class="weight-hint" id="fontWeightHint"></span>
-            </label>
-            <label class="field full"><span data-i18n="label.fontFamily">字体</span>
-              <select id="fontFamily">
-                <optgroup label="中文字体">
-                  <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
-                  <option value="PingFang SC, Microsoft YaHei, sans-serif">苹方</option>
-                  <option value="SimHei, Microsoft YaHei, sans-serif">黑体</option>
-                  <option value="SimSun, Songti SC, serif">宋体</option>
-                  <option value="KaiTi, Kaiti SC, serif">楷体</option>
-                  <option value="FangSong, STFangsong, serif">仿宋</option>
-                  <option value="YouYuan, Yuanti SC, sans-serif">幼圆</option>
-                  <option value="STHeiti, Heiti SC, sans-serif">华文黑体</option>
-                  <option value="STKaiti, Kaiti SC, serif">华文楷体</option>
-                  <option value="STLiti, LiSu, serif">华文隶书</option>
-                  <option value="STXingkai, Xingkai SC, cursive">华文行楷</option>
-                </optgroup>
-                <optgroup label="英文字体">
-                  <option value="Arial, sans-serif">Arial</option>
-                  <option value="Helvetica, Arial, sans-serif">Helvetica</option>
-                  <option value="Georgia, Times New Roman, serif">Georgia</option>
-                  <option value="Times New Roman, Times, serif">Times New Roman</option>
-                  <option value="Verdana, sans-serif">Verdana</option>
-                  <option value="Tahoma, sans-serif">Tahoma</option>
-                  <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
-                  <option value="Courier New, monospace">Courier New</option>
-                  <option value="Impact, sans-serif">Impact</option>
-                  <option value="Comic Sans MS, cursive">Comic Sans MS</option>
-                </optgroup>
-                <optgroup label="其他">
-                  <option value="sans-serif">系统默认</option>
-                  <option value="custom">自定义字体</option>
-                </optgroup>
-              </select>
-            </label>
-            <label class="field full custom-font" style="display:none;">
-              <input type="file" id="fontInput" accept=".ttf,.otf,.ttc,.woff,.woff2" hidden>
-              <span class="secondary-btn" data-i18n="label.uploadFont">上传字体文件</span>
-              <span id="fontName" class="file-info"></span>
-            </label>
-          </div>
-
+        <div class="zoom-bar">
+          <button type="button" class="zoom-fit" id="zoomFit" data-i18n="zoom.fit">适应</button>
+          <input type="range" id="zoomRange" min="0" max="100" step="1" value="50" data-i18n-title="zoom.title" title="缩放（25% – 400%）">
+          <span class="zoom-value" id="zoomValue">100%</span>
         </div>
-      </section>
+      </div>
 
-      <!-- ===== 02 导入名单 ===== -->
-      <section class="sec">
-        <div class="sec-head">
-          <span class="sec-no">02</span>
-          <div class="sec-titles">
-            <h2 class="sec-title" data-i18n="sec.02.title">导入名单</h2>
-          </div>
-        </div>
-        <div class="sec-body">
-          <p class="hint" data-i18n="names.hint">每行一个名字；也可上传 CSV 文件（首行为表头，逗号分隔），多列数据可分别填充不同区域</p>
-          <textarea id="namesInput" rows="5" data-i18n-placeholder="names.placeholder" placeholder="张三&#10;李四&#10;王五"></textarea>
-          <label class="secondary-btn">
-            <input type="file" id="namesFileInput" accept=".txt,.csv" hidden>
-            <span data-i18n="names.upload">上传名单文件</span>
-          </label>
-        </div>
-      </section>
+      <!-- 状态驱动的「下一步」引导条：始终回答「现在该干什么」 -->
+      <div class="next-step" id="nextStep" hidden>
+        <span class="next-step-n">01</span>
+        <span class="next-step-text"></span>
+        <span class="next-step-actions"></span>
+      </div>
 
-      <!-- ===== 03 批量生成 ===== -->
-      <section class="sec">
-        <div class="sec-head">
-          <span class="sec-no">03</span>
-          <div class="sec-titles">
-            <h2 class="sec-title" data-i18n="sec.03.title">批量生成</h2>
+      <p class="hint" id="modeHint" data-i18n="modeHint.select">选中图层后可拖动移动、拖角缩放、拖顶部圆点旋转；方向键微调，Delete 删除</p>
+
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="previewCanvas"></canvas>
+        <div id="marker" class="marker" data-i18n="marker.text">定位位置</div>
+
+        <!-- 空态引导卡：没有底图时，直接把「第一步该做什么」摆出来 -->
+        <div class="guide-card" id="guideCard">
+          <span class="guide-num">01</span>
+          <h3 data-i18n="guide.card.title">先上传一张底图</h3>
+          <p data-i18n="guide.card.desc">证书、工牌、邀请函、奖状——任何你想批量套用名字的图片</p>
+          <div class="guide-actions">
+            <button type="button" class="primary-btn" id="guideUpload" data-i18n="guide.card.upload">上传底图</button>
+            <button type="button" class="secondary-btn" id="guideSample" data-i18n="guide.card.sample">没有图？用示例试试</button>
           </div>
+          <p class="guide-foot" data-i18n="guide.card.drop">也可以把图片直接拖到这里</p>
         </div>
-        <div class="sec-body">
-          <div class="perf-panel" id="perfPanel" style="display:none;">
-            <div class="perf-item"><span data-i18n="perf.outputSize">输出尺寸</span><b id="outputSize">-</b></div>
-            <div class="perf-item"><span data-i18n="perf.mode">处理模式</span><b id="perfMode">-</b></div>
-            <div class="perf-item"><span data-i18n="perf.memory">内存占用</span><b id="memValue">-</b></div>
-          </div>
-          <div class="perf-warning" id="perfWarning"></div>
-          <div class="progress" id="progressBox" style="display:none;">
-            <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
-            <span id="progressText">0%</span>
-          </div>
+      </div>
+
+      <!-- ===== 图层面板 ===== -->
+      <div class="layer-panel" id="layerPanel">
+        <div class="region-toolbar">
+          <select id="layerPreset" class="preset-select">
+            <option value="" data-i18n="layer.preset">套用预设…</option>
+          </select>
+          <button type="button" id="layerUp" class="btn-small" data-i18n="layer.up">上移</button>
+          <button type="button" id="layerDown" class="btn-small" data-i18n="layer.down">下移</button>
+          <button type="button" id="layerDup" class="btn-small" data-i18n="layer.dup">复制</button>
+          <button type="button" id="layerDel" class="btn-small btn-danger" data-i18n="layer.del">删除</button>
+          <button type="button" id="layerUndo" class="btn-small" data-i18n="region.undo">撤销</button>
+          <button type="button" id="layerRedo" class="btn-small" data-i18n="region.redo">重做</button>
+          <button type="button" id="layerSave" class="btn-small" data-i18n="layer.save">保存配置</button>
+          <button type="button" id="layerLoad" class="btn-small" data-i18n="layer.load">加载配置</button>
+          <input type="file" id="layerConfigInput" accept=".json" hidden>
+          <input type="file" id="watermarkInput" accept="image/*" hidden>
+        </div>
+
+        <div id="layerList" class="layer-list"></div>
+        <div id="layerConfig" class="layer-config"></div>
+      </div>
+    </section>
+
+    <!-- ===== 底部控制台：名单 + 生成 ===== -->
+    <section class="console">
+
+      <div class="console-col" id="cardNames">
+        <div class="console-head">
+          <h2 data-i18n="sec.02.title">导入名单</h2>
+          <span class="card-tag">02</span>
+        </div>
+        <p class="hint" data-i18n="names.hint">每行一个名字；也可上传 CSV 文件（首行为表头，逗号分隔），多列数据可分别填充不同图层</p>
+        <textarea id="namesInput" rows="4" data-i18n-placeholder="names.placeholder" placeholder="张三&#10;李四&#10;王五"></textarea>
+        <label class="secondary-btn">
+          <input type="file" id="namesFileInput" accept=".txt,.csv" hidden>
+          <span data-i18n="names.upload">上传名单文件</span>
+        </label>
+      </div>
+
+      <div class="console-col console-gen" id="cardGenerate">
+        <div class="console-head">
+          <h2 data-i18n="sec.03.title">批量生成</h2>
+          <span class="card-tag">03</span>
+        </div>
+        <label class="field"><span data-i18n="label.quality">输出质量</span>
+          <select id="quality">
+            <option value="original" data-i18n="quality.original">原图尺寸</option>
+            <option value="high" selected data-i18n="quality.high">高清（最大边 2048）</option>
+            <option value="medium" data-i18n="quality.medium">标准（最大边 1280）</option>
+            <option value="low" data-i18n="quality.low">快速（最大边 800）</option>
+          </select>
+        </label>
+        <label class="field"><span data-i18n="label.format">输出格式</span>
+          <select id="outputFormat">
+            <option value="png" selected data-i18n="format.png">PNG（保留透明）</option>
+            <option value="jpeg" data-i18n="format.jpeg">JPG（体积小）</option>
+          </select>
+        </label>
+        <div class="perf-panel" id="perfPanel" style="display:none;">
+          <div class="perf-item"><span data-i18n="perf.outputSize">输出尺寸</span><b id="outputSize">-</b></div>
+          <div class="perf-item"><span data-i18n="perf.mode">处理模式</span><b id="perfMode">-</b></div>
+          <div class="perf-item"><span data-i18n="perf.memory">内存占用</span><b id="memValue">-</b></div>
+        </div>
+        <div class="perf-warning" id="perfWarning"></div>
+        <div class="progress" id="progressBox" style="display:none;">
+          <div class="progress-bar" id="progressBar"><div class="progress-bar-fill" id="progressBarFill"></div></div>
+          <span id="progressText">0%</span>
+        </div>
+        <div class="gen-actions">
           <button id="generateBtn" class="primary-btn" disabled data-i18n="generate.btn">开始生成并下载</button>
-          <div id="previewList" class="preview-list"></div>
+          <button id="cancelBtn" class="secondary-btn" style="display:none;" data-i18n="generate.cancel">取消</button>
         </div>
-      </section>
+      </div>
+    </section>
 
-    </main>
+    <section class="results" id="cardResult" style="display:none;">
+      <div class="console-head">
+        <h2 data-i18n="sec.result.title">生成结果</h2>
+      </div>
+      <div id="previewList" class="preview-list"></div>
+    </section>
 
-    <footer class="footer">
-      <div class="footer-rule"></div>
-      <p class="footer-title" data-i18n="footer.title">图印工坊 · 批量图片制作</p>
-      <p class="signature">by XanthanL</p>
-    </footer>
+  </main>
 
+  <footer class="footer">
+    <p class="footer-title" data-i18n="footer.title">图印工坊 · 批量图片制作</p>
+    <p class="signature">by XanthanL</p>
+  </footer>
+
+  <!-- 首次访问引导气泡：只走一遍，之后可从顶栏问号重新唤起 -->
+  <div class="tour-bubble" id="tourBubble" hidden>
+    <p class="tour-text"></p>
+    <div class="tour-foot">
+      <button type="button" class="tour-skip" data-i18n="guide.tour.skip">跳过</button>
+      <span class="tour-count"></span>
+      <button type="button" class="tour-next" data-i18n="guide.tour.next">下一步</button>
+    </div>
   </div>
 
-  <script src="lib/jszip.min.js"></script>
-  <script src="lib/FileSaver.min.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/region-editor.js"></script>
-  <script src="js/app.js"></script>
+  <script src="lib/jszip.min.js?v=10"></script>
+  <script src="lib/FileSaver.min.js?v=10"></script>
+  <script src="js/i18n.js?v=10"></script>
+  <script src="js/text-style.js?v=10"></script>
+  <script src="js/layers.js?v=10"></script>
+  <script src="js/layer-presets.js?v=10"></script>
+  <script src="js/custom-select.js?v=10"></script>
+  <script src="js/panel-controls.js?v=10"></script>
+  <script src="js/layer-editor.js?v=10"></script>
+  <script src="js/layer-panel.js?v=10"></script>
+  <script src="js/web-fonts.js?v=10"></script>
+  <script src="js/app.js?v=10"></script>
+  <script src="js/onboarding.js?v=10"></script>
 </body>
 </html>

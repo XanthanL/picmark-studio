@@ -10,12 +10,14 @@
 
 - 🖼️ **纯前端零部署**：单个静态站点即可运行，无需服务器、数据库或构建工具。
 - 🔒 **图片不上传服务器**：所有图片处理均在浏览器内完成，名单与底图绝不出本机，隐私安全有保障。
-- 🎯 **可视化区域编辑器**：在画布上拖拽绘制文字区域，支持移动、缩放、撤销/重做，所见即所得。
-- 🔤 **自适应字号**：根据区域大小与文本长度自动二分搜索最佳字号，长名字也能完美填充。
-- 🧰 **预设模板一键套用**：内置 15 套常用场景模板，导入底图后选择预设即可生成区域，无需手动绘制。
+- 🧱 **图层模型**：文字锚点 / 文字区域 / PNG 水印统一为图层，可分别移动、缩放、旋转、调不透明度、上下叠放、显隐、复制、撤销重做。
+- 🔤 **区域自适应字号**：按区域尺寸（含旋转后的包围盒）二分搜索最佳字号，支持自动折行与上下左右对齐。
+- 💧 **PNG 透明水印**：带透明通道的 PNG 可直接当水印铺在图上，支持完整放入 / 填满裁剪 / 拉伸铺满、旋转、水平垂直翻转、不透明度。
+- 🧰 **预设模板一键套用**：内置 15 套常用场景模板，导入底图后选择预设即可生成图层，无需手动绘制。
 - 📝 **名单导入灵活**：支持直接粘贴文本（每行一个名字）或上传 `.txt` / `.csv` 文件。
-- 🎨 **水墨印章风格 UI**：宣纸暖白底 / 墨黑文字 / 朱砂红强调，契合印章、证书、邀请函等东方场景。
-- 🗂️ **批量打包下载**：生成结果自动打包为 ZIP 一次性下载，配合 Web Worker 不阻塞界面。
+- 🎨 **新拟物 UI · 纯黑白**：同色底 + 双向投影，控件一律内凹、按钮可按下；强调靠反相实体而非彩色；亮 / 暗双主题跟随系统。
+- 🗂️ **批量打包下载**：生成结果自动打包为 ZIP 一次性下载；渲染内核同时跑在 Web Worker 里，不阻塞界面，中途可取消。
+- 🖼️ **输出格式可选**：PNG（保留透明）/ JPG（自动补白底）。
 - 📱 **移动端适配**：响应式布局，手机浏览器、微信内置浏览器均可使用。
 - ⚡ **性能可调**：支持原图尺寸 / 高清 / 标准 / 快速四档输出质量，适配不同设备性能。
 
@@ -23,9 +25,9 @@
 
 只需三步，即可批量生成个性化图片：
 
-1. **上传底图** —— 在「底图与文字」区域点击或拖拽上传一张模板图片（JPG / PNG / WEBP）。
-2. **标记位置或套用预设** —— 切换到「区域」模式，手动绘制文字框；或在「套用预设」下拉中选择一个预设模板（如「工牌胸牌」「荣誉证书」）。
-3. **导入名单并生成** —— 在「导入名单」中粘贴名单（每行一个名字），点击「开始生成并下载」，等待进度条完成后即可得到 ZIP 压缩包。
+1. **上传底图** —— 在工具条「底图」舱格点击上传（也可直接把图片拖到画布上）。
+2. **摆图层** —— 用「文字」工具在画布上点一下放锚点文字；用「区域」工具拖框放自适应文字（可连续画多个）；用「水印」工具选一张透明 PNG 再拖框摆放。也可以直接套用预设。
+3. **导入名单并生成** —— 粘贴名单（每行一个名字）或上传 `.txt` / `.csv`，选输出格式，点「开始生成并下载」，进度条走完即得 ZIP。
 
 ## 截图与演示
 
@@ -99,6 +101,10 @@ npx http-server -p 8080
 - **FileSaver.js**：触发 ZIP 文件下载（本地依赖，位于 `lib/`）。
 - **Web Worker**：批量生成任务放入独立线程，避免阻塞主界面。
 - **FontFace API**：支持上传自定义字体（TTF / OTF / WOFF）用于渲染。
+- **开源网络字体**：内置马善政毛笔楷书、志莽行书、柳建草书、龙藏体、站酷小薇、
+  站酷庆科黄油体、思源宋体七款可商用开源字体（SIL OFL），选中时才从 jsDelivr
+  按需加载（woff2，约 2–10 MB），预览与出图共用同一份字形数据；断网自动回退到
+  同风格的系统字体。
 
 ## 贡献
 
@@ -213,6 +219,7 @@ Fifteen built-in presets cover common personalized-image scenarios. Coordinates 
 - **FileSaver.js** — triggers the ZIP download (vendored in `lib/`).
 - **Web Worker** — batch generation runs in a separate thread to keep the UI responsive.
 - **FontFace API** — supports uploading custom fonts (TTF / OTF / WOFF) for rendering.
+- **Open-source web fonts** — seven commercially-free fonts (SIL OFL: Ma Shan Zheng brush kai, Zhi Mang Xing, Liu Jian Mao Cao, Long Cang, ZCOOL XiaoWei, ZCOOL QingKe HuangYou, Noto Serif SC) are loaded on demand from jsDelivr only when selected, shared by preview and output, with automatic fallback to system fonts when offline.
 
 ## Contributing
 

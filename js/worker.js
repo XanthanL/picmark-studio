@@ -1,11 +1,15 @@
 // Web Worker for image generation
-// Receives a cached background image and generates text overlays on demand
+// 与页面共用 text-style.js / layers.js：预览与成品走同一套绘制代码
 
-let cachedImageBitmap = null;
-let cachedWidth = 0;
-let cachedHeight = 0;
-let cachedOptions = null;
-let cachedFontFamily = null;
+importScripts('text-style.js');
+importScripts('layers.js');
+
+var cachedImageBitmap = null;
+var cachedWidth = 0;
+var cachedHeight = 0;
+var cachedLayers = [];
+var cachedImages = {};
+var cachedFormat = 'image/png';
 
 self.onerror = function (e) {
   self.postMessage({ type: 'init', success: false, error: e.message || 'Worker runtime error' });
@@ -18,13 +22,24 @@ self.onmessage = async function (e) {
     cachedImageBitmap = e.data.imageBitmap;
     cachedWidth = e.data.width;
     cachedHeight = e.data.height;
-    cachedOptions = e.data.options;
-    cachedFontFamily = e.data.fontFamily;
+    cachedLayers = e.data.layers || [];
+    cachedFormat = e.data.format || 'image/png';
 
-    // Register custom font if provided
-    if (e.data.fontBuffer && cachedFontFamily) {
+    // 水印位图：主线程 transfer 过来的 ImageBitmap，按 key 索引
+    cachedImages = {};
+    (e.data.images || []).forEach(function (item) {
+      if (item && item.key && item.bitmap) cachedImages[item.key] = item.bitmap;
+    });
+
+    // Register custom / open-source web fonts (ArrayBuffer → FontFace)
+    // 可能有多款：自定义上传的 + 若干开源网络字体，逐个注册后才能和预览同字形
+    var fontList = e.data.fonts || [];
+    if (!fontList.length && e.data.fontBuffer && e.data.fontFamily) {
+      fontList = [{ family: e.data.fontFamily, buffer: e.data.fontBuffer }];
+    }
+    for (var fi = 0; fi < fontList.length; fi++) {
       try {
-        const fontFace = new FontFace(cachedFontFamily, e.data.fontBuffer);
+        const fontFace = new FontFace(fontList[fi].family, fontList[fi].buffer);
         await fontFace.load();
         self.fonts.add(fontFace);
       } catch (fontErr) {
@@ -37,7 +52,7 @@ self.onmessage = async function (e) {
   }
 
   if (type === 'generate') {
-    const { text, index } = e.data;
+    const { row, columns, index } = e.data;
 
     try {
       if (!cachedImageBitmap) {
@@ -47,42 +62,31 @@ self.onmessage = async function (e) {
       const canvas = new OffscreenCanvas(cachedWidth, cachedHeight);
       const ctx = canvas.getContext('2d');
 
-      // Draw background image
       ctx.drawImage(cachedImageBitmap, 0, 0, cachedWidth, cachedHeight);
 
-      // Text styling
-      const options = cachedOptions;
-      ctx.fillStyle = options.color;
-      ctx.textBaseline = 'top';
-
-      let currentSize = options.fontSize;
-      ctx.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-
-      // Auto-scale font size to fit max width
-      if (options.maxWidth > 0) {
-        while (ctx.measureText(text).width > options.maxWidth && currentSize > 12) {
-          currentSize -= 2;
-          ctx.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-        }
+      if (cachedFormat === 'image/jpeg') {
+        // JPG 无透明通道：在已有像素之下补一层白底
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cachedWidth, cachedHeight);
+        ctx.restore();
       }
 
-      const textWidth = ctx.measureText(text).width;
-      let x = options.posX;
-      if (options.align === 'center') {
-        x -= textWidth / 2;
-      } else if (options.align === 'right') {
-        x -= textWidth;
-      }
+      PMLayers.renderAll(ctx, cachedLayers, {
+        row: row || {},
+        columns: columns || [],
+        images: cachedImages
+      });
 
-      ctx.fillText(text, x, options.posY);
-
-      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      const blob = await canvas.convertToBlob({ type: cachedFormat, quality: 0.92 });
+      const firstCol = (columns && columns[0]) || '';
 
       self.postMessage({
         success: true,
         index,
         blob,
-        text,
+        text: (row && firstCol && row[firstCol]) || ('row_' + (index + 1)),
         width: cachedWidth,
         height: cachedHeight,
       });
@@ -91,7 +95,6 @@ self.onmessage = async function (e) {
         success: false,
         index,
         error: err.message || 'Worker generation failed',
-        text,
       });
     }
   }

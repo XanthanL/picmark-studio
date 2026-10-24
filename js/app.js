@@ -11,11 +11,22 @@
     originalHeight: 0,
     outputScale: 1,            // output / original
     previewScale: 1,           // preview canvas / output (work image)
+    zoom: 1,                   // 用户缩放倍率，1 = 适应窗口
     customFontFace: null,
     customFontBuffer: null,
-    mode: 'position',
-    regionEditor: null,
-    nameColumns: ['姓名'],
+    webFonts: {},              // 网络字体 id → { family, buffer }（懒加载后缓存，出图要传给 Worker）
+    /* 图层是唯一的内容模型：文字（锚点 / 区域）与 PNG 水印都在这里，
+       预览与出图共用 PMLayers.renderAll，不再有「全局文字样式」这份平行状态 */
+    layers: [],
+    images: {},              // imageKey → HTMLImageElement（水印位图）
+    imageMeta: {},           // imageKey → { name, blob, w, h }
+    pendingWatermark: null,  // 刚选好、等待拖框放置的水印 key
+    pendingTargetLayer: null,// 从图层配置里替换图片时指向的图层 id
+    tool: 'select',          // select | point | region | image | pick
+    layerEditor: null,
+    syncing: false,          // 工具条 ↔ 图层 双向同步时的防回环标记
+    cancelRequested: false,
+    nameColumns: [I18n.t('column.default')],
     isGenerating: false,
     perf: {
       startTime: 0,
@@ -28,15 +39,23 @@
   // ===== DOM =====
   const els = {
     templateInput: document.getElementById('templateInput'),
+    cardCanvas: document.getElementById('cardCanvas'),
     imageInfo: document.getElementById('imageInfo'),
     canvasWrapper: document.getElementById('canvasWrapper'),
     canvas: document.getElementById('previewCanvas'),
     marker: document.getElementById('marker'),
-    posX: document.getElementById('posX'),
-    posY: document.getElementById('posY'),
+    resultCard: document.getElementById('cardResult'),
     fontSize: document.getElementById('fontSize'),
     fontColor: document.getElementById('fontColor'),
     textAlign: document.getElementById('textAlign'),
+    textItalic: document.getElementById('textItalic'),
+    textUnderline: document.getElementById('textUnderline'),
+    textLetterSpacing: document.getElementById('textLetterSpacing'),
+    strokeEnabled: document.getElementById('strokeEnabled'),
+    strokeWidth: document.getElementById('strokeWidth'),
+    strokeColor: document.getElementById('strokeColor'),
+    shadowEnabled: document.getElementById('shadowEnabled'),
+    shadowBlur: document.getElementById('shadowBlur'),
     maxWidth: document.getElementById('maxWidth'),
     fontFamily: document.getElementById('fontFamily'),
     fontWeight: document.getElementById('fontWeight'),
@@ -46,6 +65,7 @@
     quality: document.getElementById('quality'),
     fontInput: document.getElementById('fontInput'),
     fontName: document.getElementById('fontName'),
+    webFontStatus: document.getElementById('webFontStatus'),
     namesInput: document.getElementById('namesInput'),
     namesFileInput: document.getElementById('namesFileInput'),
     generateBtn: document.getElementById('generateBtn'),
@@ -63,36 +83,22 @@
     memValue: document.getElementById('memValue'),
     perfMode: document.getElementById('perfMode'),
     perfWarning: document.getElementById('perfWarning'),
-    pointControls: document.getElementById('pointControls'),
-    regionControls: document.getElementById('regionControls'),
-    regionPreset: document.getElementById('regionPreset'),
-    regionCreate: document.getElementById('regionCreate'),
-    regionDelete: document.getElementById('regionDelete'),
-    regionUndo: document.getElementById('regionUndo'),
-    regionRedo: document.getElementById('regionRedo'),
-    regionSave: document.getElementById('regionSave'),
-    regionLoad: document.getElementById('regionLoad'),
-    regionConfigInput: document.getElementById('regionConfigInput'),
-    regionList: document.getElementById('regionList'),
-    regionConfig: document.getElementById('regionConfig'),
-    regionTextSource: document.getElementById('regionTextSource'),
-    regionDataColumn: document.getElementById('regionDataColumn'),
-    regionDataColumnRow: document.getElementById('regionDataColumnRow'),
-    regionFixedTextRow: document.getElementById('regionFixedTextRow'),
-    regionFixedText: document.getElementById('regionFixedText'),
-    regionFontFamily: document.getElementById('regionFontFamily'),
-    regionColor: document.getElementById('regionColor'),
-    regionOpacity: document.getElementById('regionOpacity'),
-    regionRotation: document.getElementById('regionRotation'),
-    regionAlignH: document.getElementById('regionAlignH'),
-    regionAlignV: document.getElementById('regionAlignV'),
-    regionFontWeight: document.getElementById('regionFontWeight'),
-    regionFontStyle: document.getElementById('regionFontStyle'),
-    regionLineHeight: document.getElementById('regionLineHeight'),
-    regionLetterSpacing: document.getElementById('regionLetterSpacing'),
-    regionMinFont: document.getElementById('regionMinFont'),
-    regionMaxFont: document.getElementById('regionMaxFont'),
-    regionAutoFit: document.getElementById('regionAutoFit'),
+    outputFormat: document.getElementById('outputFormat'),
+    cancelBtn: document.getElementById('cancelBtn'),
+    layerPanel: document.getElementById('layerPanel'),
+    layerList: document.getElementById('layerList'),
+    layerConfig: document.getElementById('layerConfig'),
+    layerPreset: document.getElementById('layerPreset'),
+    layerUp: document.getElementById('layerUp'),
+    layerDown: document.getElementById('layerDown'),
+    layerDup: document.getElementById('layerDup'),
+    layerDel: document.getElementById('layerDel'),
+    layerUndo: document.getElementById('layerUndo'),
+    layerRedo: document.getElementById('layerRedo'),
+    layerSave: document.getElementById('layerSave'),
+    layerLoad: document.getElementById('layerLoad'),
+    layerConfigInput: document.getElementById('layerConfigInput'),
+    watermarkInput: document.getElementById('watermarkInput'),
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -296,11 +302,9 @@
         renderPreview();
         updateGenerateBtn();
         startPerfMonitor();
-        // 若当前处于区域模式，上传底图后初始化区域编辑器并更新提示
-        if (state.mode === 'region') {
-          initRegionEditor();
-          if (state.regionEditor) els.modeHint.textContent = I18n.t('modeHint.region');
-        }
+        /* 底图就绪后立刻建画布图层编辑器（没有图层时会自动补一个默认文字图层） */
+        ensureLayerEditor();
+        setTool(state.tool);
       };
       img.src = url;
     } catch (err) {
@@ -331,23 +335,26 @@
 
   // ===== Drag & Drop =====
   if (els.dropZone) {
+    /* 拖拽绑定在整个画布卡上：拖图到卡内任意位置都能上传，
+       高亮落在上传按钮上 */
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((evt) => {
-      els.dropZone.addEventListener(evt, (e) => {
+      els.cardCanvas.addEventListener(evt, (e) => {
         e.preventDefault();
         e.stopPropagation();
       });
     });
     ['dragenter', 'dragover'].forEach((evt) => {
-      els.dropZone.addEventListener(evt, () => {
+      els.cardCanvas.addEventListener(evt, () => {
         els.dropZone.classList.add('drag-over');
       });
     });
     ['dragleave', 'drop'].forEach((evt) => {
-      els.dropZone.addEventListener(evt, () => {
+      els.cardCanvas.addEventListener(evt, (e) => {
+        if (evt === 'dragleave' && els.cardCanvas.contains(e.relatedTarget)) return;
         els.dropZone.classList.remove('drag-over');
       });
     });
-    els.dropZone.addEventListener('drop', (e) => {
+    els.cardCanvas.addEventListener('drop', (e) => {
       loadTemplate(e.dataTransfer.files[0]);
     });
   }
@@ -358,41 +365,78 @@
     if (!img) return;
 
     const wrapperW = els.canvasWrapper.clientWidth;
-    const scale = wrapperW / img.width;
-    state.previewScale = scale;
-    const canvasW = Math.floor(img.width * scale);
-    const canvasH = Math.floor(img.height * scale);
+    /* 画布常驻（sticky）后高度受视口约束，scale 必须同时满足宽、高两个约束。
+       只按宽度算的话，CSS 会把 canvas 二次缩小，而 previewScale 仍是旧值，
+       区域编辑的鼠标坐标换算就会整体错位（框画不出来 / 点不中已有区域）。
+       高度上限从 CSS 变量读，与样式保持单一数据源。 */
+    /* 高度上限取 wrapper 已计算好的 max-height（calc 在这里会被解析成 px），
+       再减掉它自己的上下 padding。注意：自定义属性里的 calc() 不会被
+       getComputedStyle 计算，直接读 --canvas-max-h 只会拿到 NaN。 */
+    const cs = getComputedStyle(els.canvasWrapper);
+    const wrapperMaxH = parseFloat(cs.maxHeight);
+    const padV = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    const maxH = isFinite(wrapperMaxH) ? wrapperMaxH - padV : Infinity;
+    /* 适应比例：同时满足宽、高两个约束（画布常驻后高度受视口限制） */
+    const fit = isFinite(maxH) && maxH > 0
+      ? Math.min(wrapperW / img.width, maxH / img.height)
+      : wrapperW / img.width;
+
+    /* 用户缩放：zoom=1 即"适应"。内部位图最多取到原图 1:1，超出的部分
+       交给 CSS 拉伸显示——否则放大 3 倍时 canvas 位图会吃掉几百 MB 内存。
+       previewScale 始终等于「实际显示宽 / 原图宽」，区域坐标才不会错位。 */
+    const zoom = state.zoom || 1;
+    const target = fit * zoom;
+    const canvasScale = Math.min(target, 1);
+    const canvasW = Math.max(1, Math.floor(img.width * canvasScale));
+    const canvasH = Math.max(1, Math.floor(img.height * canvasScale));
 
     els.canvas.width = canvasW;
     els.canvas.height = canvasH;
+    if (target > canvasScale) {
+      /* 放大超过 1:1：用 CSS 拉伸，并解除 max-width 限制，让画布区可以滚动查看 */
+      els.canvas.style.width = Math.round(img.width * target) + 'px';
+      els.canvas.style.height = 'auto';
+      els.canvas.style.maxWidth = 'none';
+    } else {
+      els.canvas.style.width = '';
+      els.canvas.style.height = '';
+      els.canvas.style.maxWidth = '';
+    }
     ctx.drawImage(img, 0, 0, canvasW, canvasH);
 
-    if (state.regionEditor) {
-      state.regionEditor.setScale(scale);
-      state.regionEditor.setSize(img.width, img.height);
-      state.regionEditor.draw();
+    state.previewScale = target;
+    const scale = target;
+    /* 位图坐标系里实际用的是 canvasScale（放大时 target > canvasScale，
+       CSS 负责拉伸）。旧版这里误用 target，导致放大后图层整体错位。 */
+    const drawScale = canvasScale;
 
-      // Draw text preview inside regions
-      // Region coordinates are in work-image pixels, so scale the context
-      // to keep the preview consistent with the final output (WYSIWYG)
-      if (state.mode === 'region') {
-        const active = state.regionEditor.getActiveRegion();
-        const sample = active ? getRegionPreviewText(active) : I18n.t('preview.text');
-        ctx.save();
-        ctx.scale(scale, scale);
-        state.regionEditor.getRegions().forEach((region) => {
-          const text = getRegionPreviewText(region) || sample;
-          state.regionEditor.fitAndRender(ctx, text, region);
-        });
-        ctx.restore();
-      }
+    if (state.layerEditor) {
+      state.layerEditor.setScale(drawScale, scale);
+      state.layerEditor.setSize(img.width, img.height);
     }
 
-    if (state.mode === 'position') {
-      drawPointPreview(ctx, getPreviewText(), getGenerationOptions());
-    }
+    /* 预览与出图走同一条渲染链，只有缩放系数不同 —— 这是 WYSIWYG 的保证 */
+    ctx.save();
+    ctx.scale(drawScale, drawScale);
+    PMLayers.renderAll(ctx, state.layers, previewEnv());
+    ctx.restore();
+
+    if (state.layerEditor) state.layerEditor.draw();
 
     updateMarker();
+  }
+
+  /* 预览环境：取名单第一行；没有名单时每列都填占位文本，画布不至于空着 */
+  function previewEnv() {
+    var data = parseNameData();
+    var row = data.rows.length ? data.rows[0] : null;
+    if (!row) {
+      row = {};
+      (data.columns && data.columns.length ? data.columns : [I18n.t('column.default')]).forEach(function (c) {
+        row[c] = I18n.t('preview.text');
+      });
+    }
+    return { row: row, columns: data.columns, images: state.images, preview: true };
   }
 
   // 按分隔符切分一行，支持双引号包裹的字段（字段内可含分隔符与转义引号 ""）
@@ -425,10 +469,10 @@
   // 解析名单：支持纯文本（每行一个名字）和 CSV（首行表头，逗号分隔）
   function parseNameData() {
     var raw = els.namesInput.value.trim();
-    if (!raw) return { rows: [], columns: ['姓名'] };
+    if (!raw) return { rows: [], columns: [I18n.t('column.default')] };
 
     var lines = raw.split(/\r?\n/).filter(function (l) { return l.trim().length > 0; });
-    if (lines.length === 0) return { rows: [], columns: ['姓名'] };
+    if (lines.length === 0) return { rows: [], columns: [I18n.t('column.default')] };
 
     var delim = lines[0].indexOf('\t') >= 0 ? '\t' : (lines[0].indexOf(',') >= 0 ? ',' : null);
 
@@ -441,8 +485,8 @@
 
     if (!isCSV) {
       return {
-        rows: lines.map(function (l) { return { '姓名': l.trim() }; }),
-        columns: ['姓名']
+        rows: lines.map(function (l) { var o = {}; o[I18n.t('column.default')] = l.trim(); return o; }),
+        columns: [I18n.t('column.default')]
       };
     }
 
@@ -457,80 +501,69 @@
     return { rows: rows, columns: headers };
   }
 
-  function getPreviewText() {
-    var data = parseNameData();
-    if (data.rows.length === 0) return I18n.t('marker.text');
-    var firstCol = data.columns[0];
-    return data.rows[0][firstCol] || I18n.t('marker.text');
-  }
-
-  function getRegionPreviewText(region) {
-    if (!region.config.useNameList) return region.config.fixedText || '';
-    var data = parseNameData();
-    if (data.rows.length === 0) return I18n.t('preview.text');
-    var col = region.config.dataColumn || data.columns[0];
-    return data.rows[0][col] || '';
+  /* 顶栏和工具条都是吸顶的，图层列表若用 sticky 必须避开它们的实际高度。
+     高度随工具条内容（换行数）变化，所以这里实测后写进 CSS 变量 */
+  function syncStickyOffset() {
+    var railEl = document.querySelector('.rail');
+    if (!railEl) return;
+    var topbarEl = document.querySelector('.topbar');
+    var h = (topbarEl ? topbarEl.offsetHeight : 62) + railEl.offsetHeight + 14;
+    document.documentElement.style.setProperty('--rail-sticky-top', Math.round(h) + 'px');
   }
 
   window.addEventListener('resize', () => {
+    syncStickyOffset();
     renderPreview();
   });
 
-  // ===== Mode Switch =====
-  function setMode(mode) {
-    state.mode = mode;
-    els.modeBtns.forEach((b) => b.classList.remove('active'));
-    document.querySelector(`.mode-btn[data-mode="${mode}"]`)?.classList.add('active');
-
-    if (mode === 'pick') {
-      els.modeHint.textContent = I18n.t('modeHint.pick');
-      els.canvas.classList.add('pick-mode');
-      els.pointControls.style.display = 'flex';
-      els.regionControls.style.display = 'none';
-      els.marker.style.display = 'none';
-      if (state.regionEditor) state.regionEditor.setMode('select');
-    } else if (mode === 'region') {
-      els.canvas.classList.remove('pick-mode');
-      els.pointControls.style.display = 'none';
-      els.regionControls.style.display = 'block';
-      els.marker.style.display = 'none';
-      initRegionEditor();
-      els.modeHint.textContent = state.regionEditor ? I18n.t('modeHint.region') : I18n.t('region.needImage');
-    } else {
-      els.modeHint.textContent = I18n.t('modeHint.position');
-      els.canvas.classList.remove('pick-mode');
-      els.pointControls.style.display = 'flex';
-      els.regionControls.style.display = 'none';
-      els.marker.style.display = 'none';
-      if (state.regionEditor) state.regionEditor.setMode('select');
+  (function watchRailHeight() {
+    var railEl = document.querySelector('.rail');
+    if (!railEl) return;
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(syncStickyOffset).observe(railEl);
     }
+    syncStickyOffset();
+  })();
+
+  // ===== 工具切换 =====
+  // select 选择/移动 · point 放置文字 · region 框出区域文字 · image 放置水印 · pick 取色
+  function setTool(tool) {
+    state.tool = tool;
+    document.body.dataset.tool = tool;
+    els.modeBtns.forEach((b) => b.classList.remove('active'));
+    document.querySelector(`.mode-btn[data-tool="${tool}"]`)?.classList.add('active');
+
+    els.canvas.classList.toggle('pick-mode', tool === 'pick');
+    els.marker.style.display = 'none';
+
+    if (state.layerEditor) {
+      var createMode = tool === 'region' ? 'create-region' : (tool === 'image' ? 'create-image' : 'select');
+      state.layerEditor.setMode(createMode);
+    }
+    els.modeHint.textContent = I18n.t('modeHint.' + tool);
     renderPreview();
   }
 
   els.modeBtns.forEach((btn) => {
-    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    var tool = btn.dataset.tool;
+    btn.addEventListener('click', () => {
+      if (tool === 'image') {
+        /* 水印必须先有图：直接开文件选择，选完再进入拖框状态 */
+        if (!state.sourceImage) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
+        els.watermarkInput.click();
+        return;
+      }
+      setTool(tool);
+    });
   });
 
   // ===== Canvas Click =====
+  /* 只有取色工具还挂在 click 上；移动 / 缩放 / 放置都由图层编辑器的指针事件处理 */
   els.canvas.addEventListener('click', (e) => {
     if (!state.sourceImage) return;
-    if (state.mode === 'region') return; // region editor handles its own pointer events
-
+    if (state.tool !== 'pick') return;
     const rect = els.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Convert preview canvas coordinate to work image coordinate (compressed image)
-    const workX = Math.max(0, Math.min(Math.round(x / state.previewScale), state.sourceImage.width));
-    const workY = Math.max(0, Math.min(Math.round(y / state.previewScale), state.sourceImage.height));
-
-    if (state.mode === 'pick') {
-      pickColor(x, y);
-    } else {
-      els.posX.value = workX;
-      els.posY.value = workY;
-      renderPreview();
-    }
+    pickColor(e.clientX - rect.left, e.clientY - rect.top);
   });
 
   // ===== Color Picker =====
@@ -600,24 +633,90 @@
     updateFontWeightStatus();
   }
 
-  function refreshTextPreview() {
-    if (state.sourceImage) renderPreview();
-    else updateFontWeightStatus();
+  /* 工具条上的控件编辑的是「当前选中的文字图层」。
+     没有选中文字图层时退回第一个文字图层，一个都没有就只更新状态提示。 */
+  function activeTextLayer() {
+    var ed = state.layerEditor;
+    if (!ed) return null;
+    var l = ed.active();
+    if (l && l.type === 'text') return l;
+    return ed.getLayers().find(function (x) { return x.type === 'text'; }) || null;
   }
 
-  els.posX.addEventListener('input', refreshTextPreview);
-  els.posY.addEventListener('input', refreshTextPreview);
+  /* 工具条 → 图层（可指定目标；不指定时写当前选中的文字图层）*/
+  function railToLayer(target) {
+    var l = target || activeTextLayer();
+    if (!l) return;
+    l.fontSize = parseInt(els.fontSize.value, 10) || 60;
+    l.fontFamily = getFontFamily();
+    l.fontWeight = validateFontWeight();
+    l.color = els.fontColor.value;
+    l.align = els.textAlign.value;
+    l.italic = !!(els.textItalic && els.textItalic.checked);
+    l.underline = !!(els.textUnderline && els.textUnderline.checked);
+    l.letterSpacing = parseInt(els.textLetterSpacing ? els.textLetterSpacing.value : 0, 10) || 0;
+    l.maxWidth = parseInt(els.maxWidth.value, 10) || 0;
+    l.stroke = !!(els.strokeEnabled && els.strokeEnabled.checked);
+    l.strokeWidth = parseInt(els.strokeWidth ? els.strokeWidth.value : 0, 10) || 0;
+    l.strokeColor = els.strokeColor ? els.strokeColor.value : '#ffffff';
+    l.shadow = !!(els.shadowEnabled && els.shadowEnabled.checked);
+    l.shadowBlur = parseInt(els.shadowBlur ? els.shadowBlur.value : 0, 10) || 0;
+    l.shadowColor = 'rgba(0, 0, 0, 0.38)';
+  }
+
+  function fire(el, type) {
+    if (el) el.dispatchEvent(new Event(type, { bubbles: true }));
+  }
+
+  /* 图层 → 工具条（切换图层时把样式灌回工具条，避免"看着 A 改到 B"）*/
+  function layerToRail(l) {
+    if (!l) return;
+    state.syncing = true;
+    els.fontSize.value = l.fontSize || 60; fire(els.fontSize, 'input');
+    els.fontFamily.value = l.fontFamily; fire(els.fontFamily, 'change');
+    els.fontWeight.value = l.fontWeight || 400; fire(els.fontWeight, 'change');
+    els.fontColor.value = l.color || '#111111'; fire(els.fontColor, 'input');
+    els.textAlign.value = l.align || 'center'; fire(els.textAlign, 'change');
+    if (els.textItalic) { els.textItalic.checked = !!l.italic; fire(els.textItalic, 'change'); }
+    if (els.textUnderline) { els.textUnderline.checked = !!l.underline; fire(els.textUnderline, 'change'); }
+    if (els.textLetterSpacing) { els.textLetterSpacing.value = l.letterSpacing || 0; fire(els.textLetterSpacing, 'input'); }
+    els.maxWidth.value = l.maxWidth || 0; fire(els.maxWidth, 'input');
+    if (els.strokeEnabled) { els.strokeEnabled.checked = !!l.stroke; fire(els.strokeEnabled, 'change'); }
+    if (els.strokeWidth) { els.strokeWidth.value = l.strokeWidth || 3; fire(els.strokeWidth, 'input'); }
+    if (els.strokeColor) { els.strokeColor.value = l.strokeColor || '#ffffff'; fire(els.strokeColor, 'input'); }
+    if (els.shadowEnabled) { els.shadowEnabled.checked = !!l.shadow; fire(els.shadowEnabled, 'change'); }
+    if (els.shadowBlur) { els.shadowBlur.value = l.shadowBlur || 12; fire(els.shadowBlur, 'input'); }
+    state.syncing = false;
+  }
+
+  function refreshTextPreview() {
+    if (!state.syncing) railToLayer();
+    updateFontWeightStatus();
+    if (state.sourceImage) renderPreview();
+  }
+
   els.fontSize.addEventListener('input', refreshTextPreview);
   els.fontColor.addEventListener('input', refreshTextPreview);
   els.textAlign.addEventListener('change', refreshTextPreview);
   els.maxWidth.addEventListener('input', refreshTextPreview);
   els.fontFamily.addEventListener('change', () => {
+    ensureWebFonts();
     refreshTextPreview();
     updateFontWeightStatus();
   });
   els.fontWeight.addEventListener('change', () => {
     refreshTextPreview();
     updateFontWeightStatus();
+  });
+
+  /* 新增样式项（斜体 / 下划线 / 字间距 / 描边 / 投影）：
+     checkbox 与 number 都用 change，range 用 input，两条都挂上最省心 */
+  ['textItalic', 'textUnderline', 'textLetterSpacing', 'strokeEnabled',
+    'strokeWidth', 'strokeColor', 'shadowEnabled', 'shadowBlur'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', refreshTextPreview);
+    el.addEventListener('change', refreshTextPreview);
   });
 
   // ===== Quality change re-process =====
@@ -627,6 +726,64 @@
         loadTemplate(state.sourceFile);
       }
     });
+  }
+
+  // ===== 开源网络字体（按需懒加载）=====
+  const WEB_PREFIX = 'web:';
+
+  function webFontIdsInUse() {
+    const ids = [];
+    const collect = (v) => {
+      if (typeof v === 'string' && v.indexOf(WEB_PREFIX) === 0) {
+        const id = v.slice(WEB_PREFIX.length);
+        if (ids.indexOf(id) < 0) ids.push(id);
+      }
+    };
+    collect(els.fontFamily.value);
+    (state.layers || []).forEach((l) => collect(l.fontFamily));
+    return ids;
+  }
+
+  function setWebFontStatus(text) {
+    if (els.webFontStatus) els.webFontStatus.textContent = text || '';
+  }
+
+  /* 选中网络字体后真正去取字形数据；失败则退回系统字体栈并如实提示，
+     绝不让界面停在一个「选了但没反应」的状态 */
+  async function ensureWebFonts() {
+    if (!window.PMWebFonts) return;
+    const ids = webFontIdsInUse();
+    if (!ids.length) { setWebFontStatus(''); return; }
+    const W = window.PMWebFonts;
+    const lang = window.I18n && I18n.current ? I18n.current() : 'zh-CN';
+    let changed = false;
+    for (const id of ids) {
+      if (state.webFonts[id]) continue;
+      const name = W.labelOf(id, lang === 'en' ? 'en' : 'zh');
+      setWebFontStatus(I18n.t('font.web.loading', { name: name }));
+      const got = await W.ensure(id);
+      if (got) {
+        state.webFonts[id] = got;
+        changed = true;
+        setWebFontStatus(I18n.t('font.web.ready', { name: name }));
+      } else {
+        setWebFontStatus(I18n.t('font.web.fail', { name: name }));
+      }
+    }
+    if (changed && state.sourceImage) renderPreview();
+  }
+
+  /* 出图时把「用得到的」字形数据交给 Worker（自定义字体 + 网络字体） */
+  function fontPayloadForWorker() {
+    const out = [];
+    if (state.customFontFace && state.customFontBuffer) {
+      out.push({ family: state.customFontFace, buffer: state.customFontBuffer });
+    }
+    webFontIdsInUse().forEach((id) => {
+      const f = state.webFonts[id];
+      if (f) out.push({ family: f.family, buffer: f.buffer });
+    });
+    return out;
   }
 
   // ===== Custom Font =====
@@ -677,78 +834,48 @@
     if (state.sourceImage) renderPreview();
   });
 
-  // 刷新数据列下拉选项
+  /* 数据列下拉由图层面板在渲染时按需生成（列随名单变化），
+     这里只需同步 state 并重画一次面板即可 */
   function refreshNameColumns() {
     var data = parseNameData();
+    var changed = state.nameColumns.join('') !== data.columns.join('');
     state.nameColumns = data.columns;
-    var sel = els.regionDataColumn;
-    var current = sel.value;
-    sel.innerHTML = '';
-    data.columns.forEach(function (col) {
-      var opt = document.createElement('option');
-      opt.value = col;
-      opt.textContent = col;
-      sel.appendChild(opt);
-    });
-    if (data.columns.indexOf(current) >= 0) sel.value = current;
+    if (changed && state.layerEditor) panelRender();
   }
 
   function updateGenerateBtn() {
     const hasImage = !!state.sourceImage;
     const hasNames = els.namesInput.value.trim().length > 0;
     els.generateBtn.disabled = !(hasImage && hasNames) || state.isGenerating;
+    /* 引导条随状态走：底图 / 名单 / 产出 任一变化都要重算「现在该干什么」 */
+    if (window.PMOnboard) window.PMOnboard.refresh();
   }
 
   function getFontFamily() {
     const val = els.fontFamily.value;
     if (val === 'custom') return state.customFontFace || 'sans-serif';
+    if (val.indexOf(WEB_PREFIX) === 0) {
+      const id = val.slice(WEB_PREFIX.length);
+      const loaded = state.webFonts[id];
+      if (loaded) return loaded.family;
+      /* 还没下载完（或下载失败）：先用同风格的系统字体顶着，不留空 */
+      return window.PMWebFonts ? PMWebFonts.fallbackOf(id) : 'sans-serif';
+    }
     return val;
   }
 
-  // ===== Generation Options =====
-  function getGenerationOptions() {
-    // WYSIWYG based on the compressed work image:
-    // the coordinate and font size shown in the UI are exactly what will be used
-    // in the final generated image.
-    return {
-      fontSize: Math.max(12, parseInt(els.fontSize.value, 10)),
-      color: hexToRgb(els.fontColor.value),
-      align: els.textAlign.value,
-      maxWidth: parseInt(els.maxWidth.value, 10) || 0,
-      fontFamily: getFontFamily(),
-      fontWeight: validateFontWeight(),
-      posX: parseInt(els.posX.value, 10),
-      posY: parseInt(els.posY.value, 10),
-    };
-  }
-
-  function drawPointText(c, text, options) {
-    c.fillStyle = options.color;
-    c.textBaseline = 'top';
-
-    let currentSize = options.fontSize;
-    c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-
-    if (options.maxWidth > 0) {
-      while (c.measureText(text).width > options.maxWidth && currentSize > 12) {
-        currentSize -= 2;
-        c.font = `${options.fontWeight} ${currentSize}px ${options.fontFamily}`;
-      }
+  /* 出图：底图 + 图层，与预览完全同一条渲染链（PMLayers.renderAll） */
+  function paintOutput(c, env) {
+    c.drawImage(state.workBitmap, 0, 0, state.outputWidth, state.outputHeight);
+    if (els.outputFormat && els.outputFormat.value === 'jpeg') {
+      /* JPG 不支持透明：先铺一层白底，否则透明区会变黑 */
+      c.save();
+      c.globalCompositeOperation = 'destination-over';
+      c.fillStyle = '#ffffff';
+      c.fillRect(0, 0, state.outputWidth, state.outputHeight);
+      c.restore();
     }
-
-    const textWidth = c.measureText(text).width;
-    let x = options.posX;
-    if (options.align === 'center') x -= textWidth / 2;
-    else if (options.align === 'right') x -= textWidth;
-
-    c.fillText(text, x, options.posY);
-  }
-
-  function drawPointPreview(c, text, options) {
-    c.save();
-    c.scale(state.previewScale, state.previewScale);
-    drawPointText(c, text, options);
-    c.restore();
+    PMLayers.renderAll(c, state.layers, env);
   }
 
   // ===== Worker =====
@@ -773,11 +900,27 @@
     }
   }
 
-  async function initWorkerWithImage(options) {
+  async function initWorkerWithImage() {
     const w = initWorker();
     if (!w) return null;
 
     const imageBitmap = await createImageBitmap(state.workBlob);
+    const transfer = [imageBitmap];
+
+    /* 水印位图：每个 key 单独 createImageBitmap 一份给 worker，
+       transfer 之后主线程那份（HTMLImageElement）仍可用于预览 */
+    const workerImages = [];
+    for (const key of Object.keys(state.images)) {
+      const meta = state.imageMeta[key];
+      if (!meta || !meta.blob) continue;
+      try {
+        const bmp = await createImageBitmap(meta.blob);
+        workerImages.push({ key: key, bitmap: bmp });
+        transfer.push(bmp);
+      } catch (e) {
+        console.warn('[PicMark] watermark bitmap failed:', key, e.message);
+      }
+    }
 
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -818,16 +961,20 @@
           imageBitmap,
           width: state.outputWidth,
           height: state.outputHeight,
-          options,
-          fontBuffer: state.customFontBuffer,
-          fontFamily: state.customFontFace,
+          /* 图层是纯数据，可以安全结构化克隆；水印位图单独 transfer */
+          layers: JSON.parse(JSON.stringify(state.layers)),
+          images: workerImages,
+          format: outputMime(),
+          /* 字形数据：自定义上传的 + 所有已加载的开源网络字体，
+             Worker 里逐个 FontFace 注册，保证出图与预览同字形 */
+          fonts: fontPayloadForWorker(),
         },
-        [imageBitmap]
+        transfer
       );
     });
   }
 
-  function generateOneWithWorker(w, name, index) {
+  function generateOneWithWorker(w, row, columns, index) {
     return new Promise((resolve, reject) => {
       const handler = (e) => {
         if (e.data.index !== index) return;
@@ -840,26 +987,20 @@
       };
 
       w.addEventListener('message', handler);
-      w.postMessage({ type: 'generate', text: name, index });
+      w.postMessage({ type: 'generate', row: row, columns: columns, index: index });
     });
   }
 
-  function drawRegions(c, row, columns) {
-    if (!state.regionEditor) return;
-    state.regionEditor.getRegions().forEach((region) => {
-      var text;
-      if (region.config.useNameList) {
-        var col = region.config.dataColumn || columns[0];
-        text = row[col] || '';
-      } else {
-        text = region.config.fixedText || '';
-      }
-      if (text) state.regionEditor.fitAndRender(c, text, region);
-    });
+  function outputMime() {
+    return els.outputFormat && els.outputFormat.value === 'jpeg' ? 'image/jpeg' : 'image/png';
+  }
+
+  function outputExt() {
+    return els.outputFormat && els.outputFormat.value === 'jpeg' ? 'jpg' : 'png';
   }
 
   // ===== Main Thread Fallback =====
-  async function generateOneMainThread(row, nameText, options, columns) {
+  async function generateOneMainThread(row, nameText, columns) {
     return new Promise((resolve) => {
       // Yield to main thread to keep UI responsive, even when tab is backgrounded
       setTimeout(() => {
@@ -868,17 +1009,11 @@
         canvas.height = state.outputHeight;
         const c = canvas.getContext('2d');
 
-        c.drawImage(state.workBitmap, 0, 0, state.outputWidth, state.outputHeight);
-
-        if (state.regionEditor && state.regionEditor.getRegions().length > 0) {
-          drawRegions(c, row, columns);
-        } else {
-          drawPointText(c, nameText, options);
-        }
+        paintOutput(c, { row: row, columns: columns, images: state.images });
 
         canvas.toBlob((blob) => {
-          resolve({ blob, text: nameText, width: state.outputWidth, height: state.outputHeight });
-        }, 'image/png');
+          resolve({ blob: blob, text: nameText, width: state.outputWidth, height: state.outputHeight });
+        }, outputMime(), 0.92);
       }, 0);
     });
   }
@@ -891,6 +1026,7 @@
     thumbUrls.forEach((u) => URL.revokeObjectURL(u));
     thumbUrls = [];
     els.previewList.innerHTML = '';
+    els.resultCard.style.display = 'none';
   }
 
   els.generateBtn.addEventListener('click', async () => {
@@ -912,35 +1048,42 @@
     }
 
     state.isGenerating = true;
+    state.cancelRequested = false;
     updateGenerateBtn();
+    els.cancelBtn.style.display = '';
 
-    if (state.customFontFace) {
+    /* 出图前把用到的开源网络字体全部拉齐，否则成品会退回系统字体 */
+    await ensureWebFonts();
+    if (state.customFontFace || webFontIdsInUse().length) {
       await document.fonts.ready;
     }
 
     els.progressBox.style.display = 'flex';
+    els.progressBarFill.style.width = '0%';
+    els.progressText.textContent = '0%';
+    els.perfWarning.textContent = '';
     clearThumbnails();
+    els.resultCard.style.display = '';
     state.perf.startTime = performance.now();
 
     try {
       const zip = new JSZip();
       const total = rows.length;
-      const options = getGenerationOptions();
       const columns = nameData.columns;
       const firstCol = columns[0];
       const usedNames = Object.create(null);
+      const ext = outputExt();
 
-      console.log('[PicMark] Generation options:', options);
-      console.log('[PicMark] Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
+      console.log('[PicMark] Layers:', state.layers.length, 'Output size:', state.outputWidth, 'x', state.outputHeight, 'Worker supported:', state.perf.workerSupported, 'Low power:', state.perf.lowPowerMode);
 
-      // Use worker if supported and no region text (region rendering is done on main thread)
-      const hasRegions = state.regionEditor && state.regionEditor.getRegions().length > 0;
-      const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode && !hasRegions;
+      /* 图层模型下 Worker 也能完整渲染（区域文字 / 水印都进了内核），
+         不再像旧版那样「有区域就退回主线程」 */
+      const useWorker = state.perf.workerSupported && !state.perf.lowPowerMode;
       let workerInstance = null;
 
       if (useWorker) {
         try {
-          workerInstance = await initWorkerWithImage(options);
+          workerInstance = await initWorkerWithImage();
         } catch (err) {
           console.warn('[PicMark] Worker init failed:', err.message);
           workerInstance = null;
@@ -948,20 +1091,24 @@
       }
 
       for (let i = 0; i < total; i++) {
+        if (state.cancelRequested) {
+          els.perfWarning.textContent = I18n.t('generate.cancelled', { n: i });
+          break;
+        }
         const row = rows[i];
         const nameText = row[firstCol] || ('row_' + (i + 1));
         let result;
 
         try {
           if (workerInstance) {
-            result = await generateOneWithWorker(workerInstance, nameText, i);
+            result = await generateOneWithWorker(workerInstance, row, columns, i);
           } else {
-            result = await generateOneMainThread(row, nameText, options, columns);
+            result = await generateOneMainThread(row, nameText, columns);
           }
         } catch (err) {
           console.error('[PicMark] Generation error for', nameText, ':', err.message);
           // Fallback to main thread on worker error
-          result = await generateOneMainThread(row, nameText, options, columns);
+          result = await generateOneMainThread(row, nameText, columns);
         }
 
         // 重名时追加序号，避免 ZIP 内同名文件互相覆盖
@@ -972,7 +1119,7 @@
         } else {
           usedNames[safeName] = 1;
         }
-        zip.file(`${safeName}.png`, result.blob);
+        zip.file(`${safeName}.${ext}`, result.blob);
 
         if (i < 9) {
           const thumbUrl = URL.createObjectURL(result.blob);
@@ -985,7 +1132,7 @@
 
         const pct = Math.round(((i + 1) / total) * 100);
         els.progressBarFill.style.width = pct + '%';
-        els.progressText.textContent = pct + '%';
+        els.progressText.textContent = `${i + 1}/${total} · ${pct}%`;
 
         if (i % 3 === 0) {
           updatePerfMonitor();
@@ -994,14 +1141,16 @@
 
       terminateWorker();
 
-      // PNG 已经过压缩，再次 deflate 收益微小且耗时，直接存储可大幅提速打包
-      const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-      const timestamp = formatTimestamp(new Date());
-      saveAs(content, I18n.t('generate.zipName', { timestamp: timestamp }) + '.zip');
+      if (!state.cancelRequested) {
+        // PNG / JPG 本身已是压缩格式，再次 deflate 收益微小且耗时，直接存储可大幅提速打包
+        const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+        const timestamp = formatTimestamp(new Date());
+        saveAs(content, I18n.t('generate.zipName', { timestamp: timestamp }) + '.zip');
 
-      const elapsed = ((performance.now() - state.perf.startTime) / 1000).toFixed(1);
-      els.perfWarning.textContent = I18n.t('generate.complete', { sec: elapsed });
-      console.log('[PicMark] Generation completed in', elapsed, 'seconds');
+        const elapsed = ((performance.now() - state.perf.startTime) / 1000).toFixed(1);
+        els.perfWarning.textContent = I18n.t('generate.complete', { sec: elapsed });
+        console.log('[PicMark] Generation completed in', elapsed, 'seconds');
+      }
     } catch (err) {
       console.error('[PicMark] Batch generation failed:', err);
       alert(I18n.t('error.generate', { msg: err.message }));
@@ -1010,214 +1159,396 @@
     }
 
     state.isGenerating = false;
+    state.cancelRequested = false;
+    els.cancelBtn.style.display = 'none';
     els.generateBtn.textContent = I18n.t('generate.btn.again');
     updateGenerateBtn();
     updatePerfMonitor();
   });
 
-  // ===== Region Editor Integration =====
-  function initRegionEditor() {
-    if (!state.sourceImage) return;
-    if (state.regionEditor) {
-      state.regionEditor.setScale(state.previewScale);
-      state.regionEditor.setSize(state.sourceImage.width, state.sourceImage.height);
-      renderRegionList();
-      return;
+  els.cancelBtn.addEventListener('click', () => {
+    if (!state.isGenerating) return;
+    state.cancelRequested = true;
+    terminateWorker();
+  });
+
+  // ===== 图层系统 =====
+  function panelRender() {
+    PMLayerPanel.render();
+    var ed = state.layerEditor;
+    var has = !!ed;
+    var act = has && !!ed.active();
+    els.layerUp.disabled = !act;
+    els.layerDown.disabled = !act;
+    els.layerDup.disabled = !act;
+    els.layerDel.disabled = !act;
+    els.layerUndo.disabled = !(has && ed.canUndo());
+    els.layerRedo.disabled = !(has && ed.canRedo());
+  }
+
+  function ensureLayerEditor() {
+    if (!state.sourceImage) return null;
+    if (state.layerEditor) {
+      state.layerEditor.setSize(state.sourceImage.width, state.sourceImage.height);
+      return state.layerEditor;
     }
 
-    state.regionEditor = new RegionEditor({
+    state.layerEditor = new LayerEditor({
       canvas: els.canvas,
       ctx: ctx,
-      scale: state.previewScale,
+      layers: state.layers,
       width: state.sourceImage.width,
       height: state.sourceImage.height,
-      onChange: () => {
-        renderRegionList();
-        renderPreview();
+      drawScale: state.previewScale,
+      viewScale: state.previewScale,
+      onChange: function () {
+        /* 用户真的动过图层（移动/缩放/旋转/改属性）才算走完「第 2 步」；
+           系统自动补的默认图层不算，否则这条引导永远不会出现 */
+        if (!state.suppressTouch) state.layerTouched = true;
+        panelRender();
+        /* 图层可以单独选字体，这里也要兜住网络字体的懒加载 */
+        ensureWebFonts();
+        if (state.sourceImage) renderPreview();
+        /* 动了图层 = 第 2 步完成，引导条要立刻跟着变 */
+        if (window.PMOnboard) window.PMOnboard.refresh();
       },
-      onActiveChange: (region) => {
-        renderRegionList();
-        if (region) {
-          syncRegionConfigToUI(region);
-          els.regionConfig.style.display = 'block';
-        } else {
-          els.regionConfig.style.display = 'none';
-        }
+      onSelect: function (l) {
+        if (l && l.type === 'text') layerToRail(l);
+        panelRender();
       },
+      onBackground: function (p) { handleBackground(p); },
+      onCreate: function (rect) { createLayerFromRect(rect); }
     });
+    PMLayerPanel.setEditor(state.layerEditor);
 
-    renderRegionList();
-  }
-
-  function renderRegionList() {
-    if (!state.regionEditor) return;
-    els.regionList.innerHTML = '';
-    const regions = state.regionEditor.getRegions();
-    regions.forEach((r, idx) => {
-      const item = document.createElement('div');
-      item.className = 'region-item' + (r.id === state.regionEditor.activeId ? ' active' : '');
-      // 用 textContent 构建，避免 CSV 表头等外部文本注入 HTML
-      const left = document.createElement('span');
-      left.textContent = `${I18n.t('region.label')} ${idx + 1} · ${r.width}×${r.height}`;
-      const right = document.createElement('span');
-      right.textContent = r.config.useNameList ? (r.config.dataColumn || state.nameColumns[0] || I18n.t('region.label')) : I18n.t('region.fixed');
-      item.appendChild(left);
-      item.appendChild(right);
-      item.addEventListener('click', () => state.regionEditor.setActive(r.id));
-      els.regionList.appendChild(item);
-    });
-
-    els.regionUndo.disabled = !state.regionEditor.canUndo();
-    els.regionRedo.disabled = !state.regionEditor.canRedo();
-    els.regionDelete.disabled = !state.regionEditor.getActiveRegion();
-  }
-
-  function syncRegionConfigToUI(region) {
-    if (!region) return;
-    const cfg = region.config;
-    els.regionTextSource.value = cfg.useNameList ? 'name' : 'fixed';
-    els.regionDataColumnRow.style.display = cfg.useNameList ? 'flex' : 'none';
-    els.regionFixedTextRow.style.display = cfg.useNameList ? 'none' : 'flex';
-    if (cfg.useNameList) {
-      var cols = state.nameColumns;
-      els.regionDataColumn.innerHTML = '';
-      cols.forEach(function (col) {
-        var opt = document.createElement('option');
-        opt.value = col;
-        opt.textContent = col;
-        els.regionDataColumn.appendChild(opt);
+    /* 首次有底图时给一个默认文字图层，位置和旧版定位模式一致：
+       水平居中、纵向 60%，这样一上来点名单就能看到效果 */
+    if (!state.layers.length) {
+      var W = state.sourceImage.width;
+      var H = state.sourceImage.height;
+      var def = PMLayers.create('text', {
+        mode: 'point',
+        name: I18n.t('layer.text', '文字') + ' 1',
+        x: Math.round(W / 2),
+        y: Math.round(H * 0.6),
+        align: 'center'
       });
-      els.regionDataColumn.value = cfg.dataColumn && cols.indexOf(cfg.dataColumn) >= 0 ? cfg.dataColumn : cols[0];
+      railToLayer(def);
+      /* 这一层是系统补的，不该让「第 2 步」引导直接判定完成 */
+      state.suppressTouch = true;
+      state.layerEditor.addLayer(def);
+      state.suppressTouch = false;
     }
-    els.regionFixedText.value = cfg.fixedText || '';
-    els.regionFontFamily.value = cfg.fontFamily;
-    els.regionColor.value = cfg.color;
-    els.regionOpacity.value = cfg.opacity;
-    els.regionRotation.value = cfg.rotation;
-    els.regionAlignH.value = cfg.alignH;
-    els.regionAlignV.value = cfg.alignV;
-    els.regionFontWeight.value = cfg.fontWeight;
-    els.regionFontStyle.value = cfg.fontStyle;
-    els.regionLineHeight.value = cfg.lineHeight;
-    els.regionLetterSpacing.value = cfg.letterSpacing;
-    els.regionMinFont.value = cfg.minFontSize;
-    els.regionMaxFont.value = cfg.maxFontSize;
-    els.regionAutoFit.checked = cfg.autoFit;
+    panelRender();
+    return state.layerEditor;
   }
 
-  function bindRegionConfigEvents() {
-    // 填充预设下拉（仅保留首项占位，避免重复填充）
-    var presets = RegionEditor.getPresets();
-    while (els.regionPreset.options.length > 1) {
-      els.regionPreset.remove(1);
+  /* 画布空白处的点击：按当前工具决定做什么 */
+  function handleBackground(p) {
+    if (state.tool === 'pick') {
+      pickColor(p.x * state.previewScale, p.y * state.previewScale);
+      return;
     }
+    if (state.tool === 'point') {
+      var l = state.layerEditor && state.layerEditor.active();
+      if (l && l.type === 'text' && l.mode !== 'region') {
+        l.x = Math.round(p.x);
+        l.y = Math.round(p.y);
+        state.layerEditor._pushHistory();
+      } else {
+        var nl = PMLayers.create('text', {
+          mode: 'point',
+          name: I18n.t('layer.text', '文字') + ' ' + (state.layers.length + 1),
+          x: Math.round(p.x),
+          y: Math.round(p.y)
+        });
+        railToLayer(nl);
+        state.layerEditor.addLayer(nl);
+      }
+      panelRender();
+      renderPreview();
+      return;
+    }
+    // select：点空白 = 取消选中
+    if (state.layerEditor) {
+      state.layerEditor.activeId = null;
+      panelRender();
+      state.layerEditor.draw();
+    }
+  }
+
+  /* 拖框结束（或单击）后建图层 */
+  function createLayerFromRect(rect) {
+    var W = state.sourceImage.width;
+    var H = state.sourceImage.height;
+    var layer;
+
+    if (state.tool === 'image') {
+      var key = state.pendingWatermark;
+      if (!key || !state.images[key]) {
+        els.modeHint.textContent = I18n.t('watermark.need', '请先选择一张 PNG 图片作为水印');
+        setTool('select');
+        return;
+      }
+      var meta = state.imageMeta[key] || { w: 100, h: 100 };
+      var tw, th;
+      if (rect.w > 0 && rect.h > 0) {
+        tw = rect.w; th = rect.h;
+      } else {
+        tw = W * 0.3;
+        th = tw * (meta.h / Math.max(1, meta.w));
+      }
+      layer = PMLayers.create('image', {
+        name: (meta.name || I18n.t('layer.watermark', '水印')).replace(/\.[a-z]+$/i, ''),
+        imageKey: key,
+        x: Math.round(rect.x - tw / 2),
+        y: Math.round(rect.y - th / 2),
+        w: Math.round(tw),
+        h: Math.round(th)
+      });
+    } else {
+      var rw = rect.w > 0 ? rect.w : W * 0.4;
+      var rh = rect.h > 0 ? rect.h : H * 0.15;
+      layer = PMLayers.create('text', {
+        mode: 'region',
+        name: I18n.t('layer.region', '区域') + ' ' + (state.layers.length + 1),
+        x: Math.round(rect.x - rw / 2),
+        y: Math.round(rect.y - rh / 2),
+        w: Math.round(rw),
+        h: Math.round(rh),
+        autoFit: true
+      });
+      railToLayer(layer);
+    }
+
+    state.layerEditor.addLayer(layer);
+    /* 工具保持激活：名单类模板往往要连画几个框（姓名/编号/日期），
+       画完又跳回选择工具反而多两次点击。命中已有图层时仍是拖动它，不冲突 */
+    panelRender();
+    renderPreview();
+  }
+
+  /* 水印图片：页面用 HTMLImageElement 预览，另转一份 ImageBitmap 给 Worker */
+  els.watermarkInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    els.watermarkInput.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      const key = PMLayers.uid('WM');
+      state.images[key] = img;
+      state.imageMeta[key] = { name: file.name, blob: file, w: img.naturalWidth, h: img.naturalHeight };
+
+      /* 从图层配置里的「选择图片」进来：直接替换该图层的图，不新建图层 */
+      const targetId = state.pendingTargetLayer;
+      const target = targetId && state.layerEditor
+        ? state.layerEditor.getLayers().find((l) => l.id === targetId)
+        : null;
+      state.pendingTargetLayer = null;
+      if (target && target.type === 'image') {
+        target.imageKey = key;
+        target.name = file.name.replace(/\.[a-z]+$/i, '') || I18n.t('layer.watermark', '水印');
+        state.layerEditor._pushHistory();
+        panelRender();
+        renderPreview();
+        return;
+      }
+
+      state.pendingWatermark = key;
+      els.modeHint.textContent = I18n.t('modeHint.image');
+      setTool('image');
+      renderPreview();
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+
+  /* ===== 图层面板按钮 ===== */
+  function bindLayerToolbar() {
+    var presets = window.PMLayerPresets || [];
+    while (els.layerPreset.options.length > 1) els.layerPreset.remove(1);
     presets.forEach(function (p, idx) {
       var opt = document.createElement('option');
       opt.value = idx;
       opt.textContent = p.name + ' · ' + p.desc;
-      els.regionPreset.appendChild(opt);
+      els.layerPreset.appendChild(opt);
     });
 
-    els.regionPreset.addEventListener('change', function () {
-      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); els.regionPreset.value = ''; return; }
-      var idx = parseInt(els.regionPreset.value, 10);
+    els.layerPreset.addEventListener('change', function () {
+      if (!state.layerEditor) { els.modeHint.textContent = I18n.t('region.needImage'); els.layerPreset.value = ''; return; }
+      var idx = parseInt(els.layerPreset.value, 10);
       if (isNaN(idx)) return;
       var preset = presets[idx];
-      state.regionEditor.applyPreset(preset);
+      var W = state.sourceImage.width;
+      var H = state.sourceImage.height;
+      state.layers = preset.regions.map(function (r, i) {
+        var cfg = Object.assign({}, r.config);
+        var name = cfg.name || (I18n.t('layer.region', '区域') + ' ' + (i + 1));
+        delete cfg.name;
+        var l = PMLayers.create('text', Object.assign({
+          mode: 'region',
+          name: name,
+          x: Math.round(r.rx * W),
+          y: Math.round(r.ry * H),
+          w: Math.max(16, Math.round(r.rw * W)),
+          h: Math.max(16, Math.round(r.rh * H)),
+          autoFit: true
+        }, cfg));
+        return l;
+      });
+      state.layerEditor.setLayers(state.layers);
+      state.layerEditor.activeId = state.layers.length ? state.layers[0].id : null;
+      state.layerEditor._pushHistory();
       els.modeHint.textContent = I18n.t('modeHint.preset', { name: preset.name });
-      els.regionPreset.value = '';
+      els.layerPreset.value = '';
+      panelRender();
       renderPreview();
     });
 
-    els.regionCreate.addEventListener('click', () => {
-      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
-      state.regionEditor.setMode('create');
-      els.modeHint.textContent = I18n.t('modeHint.create');
+    els.layerUp.addEventListener('click', () => {
+      if (state.layerEditor && state.layerEditor.activeId) state.layerEditor.moveLayer(state.layerEditor.activeId, 1);
+    });
+    els.layerDown.addEventListener('click', () => {
+      if (state.layerEditor && state.layerEditor.activeId) state.layerEditor.moveLayer(state.layerEditor.activeId, -1);
+    });
+    els.layerDup.addEventListener('click', () => { if (state.layerEditor) state.layerEditor.duplicateActive(); });
+    els.layerDel.addEventListener('click', () => { if (state.layerEditor) state.layerEditor.deleteActive(); });
+
+    els.layerUndo.addEventListener('click', () => { if (state.layerEditor) state.layerEditor.undo(); });
+    els.layerRedo.addEventListener('click', () => { if (state.layerEditor) state.layerEditor.redo(); });
+
+    els.layerSave.addEventListener('click', () => {
+      if (!state.layerEditor) return;
+      var blob = new Blob([JSON.stringify({ version: 2, layers: state.layers }, null, 2)], { type: 'application/json' });
+      saveAs(blob, 'picmark-layers.json');
     });
 
-    els.regionDelete.addEventListener('click', () => {
-      if (!state.regionEditor) return;
-      const active = state.regionEditor.getActiveRegion();
-      if (active) state.regionEditor.deleteRegion(active.id);
+    els.layerLoad.addEventListener('click', () => {
+      if (!state.layerEditor) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
+      els.layerConfigInput.click();
     });
 
-    els.regionUndo.addEventListener('click', () => { if (state.regionEditor) state.regionEditor.undo(); });
-    els.regionRedo.addEventListener('click', () => { if (state.regionEditor) state.regionEditor.redo(); });
-
-    els.regionSave.addEventListener('click', () => {
-      if (!state.regionEditor) return;
-      const blob = new Blob([state.regionEditor.exportConfig()], { type: 'application/json' });
-      saveAs(blob, 'picmark-region-config.json');
-    });
-
-    els.regionLoad.addEventListener('click', () => {
-      if (!state.regionEditor) { els.modeHint.textContent = I18n.t('region.needImage'); return; }
-      els.regionConfigInput.click();
-    });
-    els.regionConfigInput.addEventListener('change', (e) => {
-      if (!state.regionEditor) return;
-      const file = e.target.files[0];
+    els.layerConfigInput.addEventListener('change', (e) => {
+      if (!state.layerEditor) return;
+      var file = e.target.files[0];
+      els.layerConfigInput.value = '';
       if (!file) return;
-      const reader = new FileReader();
+      var reader = new FileReader();
       reader.onload = (ev) => {
-        state.regionEditor.loadConfig(ev.target.result);
-        renderPreview();
+        try {
+          var data = JSON.parse(ev.target.result);
+          var list = Array.isArray(data) ? data : data.layers;
+          if (!Array.isArray(list)) throw new Error('bad format');
+          state.layers = list.map(function (l) {
+            var base = PMLayers.create(l.type === 'image' ? 'image' : 'text', {});
+            return Object.assign(base, l, { id: base.id });
+          });
+          state.layerEditor.setLayers(state.layers);
+          state.layerEditor.activeId = state.layers.length ? state.layers[0].id : null;
+          state.layerEditor._pushHistory();
+          panelRender();
+          renderPreview();
+        } catch (err) {
+          alert(I18n.t('error.configLoad', { msg: err.message }));
+        }
       };
       reader.readAsText(file);
     });
+  }
 
-    const configMap = [
-      { el: els.regionTextSource, key: 'useNameList', type: 'map', map: { name: true, fixed: false } },
-      { el: els.regionDataColumn, key: 'dataColumn', type: 'string' },
-      { el: els.regionFixedText, key: 'fixedText', type: 'string' },
-      { el: els.regionFontFamily, key: 'fontFamily', type: 'string' },
-      { el: els.regionColor, key: 'color', type: 'string' },
-      { el: els.regionOpacity, key: 'opacity', type: 'number' },
-      { el: els.regionRotation, key: 'rotation', type: 'number' },
-      { el: els.regionAlignH, key: 'alignH', type: 'string' },
-      { el: els.regionAlignV, key: 'alignV', type: 'string' },
-      { el: els.regionFontWeight, key: 'fontWeight', type: 'number' },
-      { el: els.regionFontStyle, key: 'fontStyle', type: 'string' },
-      { el: els.regionLineHeight, key: 'lineHeight', type: 'number' },
-      { el: els.regionLetterSpacing, key: 'letterSpacing', type: 'number' },
-      { el: els.regionMinFont, key: 'minFontSize', type: 'number' },
-      { el: els.regionMaxFont, key: 'maxFontSize', type: 'number' },
-      { el: els.regionAutoFit, key: 'autoFit', type: 'boolean' },
-    ];
-
-    configMap.forEach((item) => {
-      const event = (item.el.type === 'checkbox' || item.el.tagName === 'SELECT') ? 'change' : 'input';
-      item.el.addEventListener(event, () => {
-        if (!state.regionEditor) return;
-        const region = state.regionEditor.getActiveRegion();
-        if (!region) return;
-        let value;
-        if (item.type === 'boolean') value = item.el.checked;
-        else if (item.type === 'map') value = item.map[item.el.value];
-        else if (item.type === 'number') value = parseFloat(item.el.value);
-        else value = item.el.value;
-        state.regionEditor.updateRegion(region.id, { config: { [item.key]: value } });
-
-        if (item.key === 'useNameList') {
-          els.regionDataColumnRow.style.display = value ? 'flex' : 'none';
-          els.regionFixedTextRow.style.display = value ? 'none' : 'flex';
-        }
-        renderPreview();
-      });
+  /* <optgroup> 的 label 不能用 data-i18n：I18n.apply 写 textContent 会把
+     里面的 <option> 一起冲掉，所以单独走 label 属性 */
+  function applyOptgroupLabels() {
+    document.querySelectorAll('[data-i18n-label]').forEach((g) => {
+      g.label = I18n.t(g.getAttribute('data-i18n-label'));
     });
   }
+  applyOptgroupLabels();
+  window.addEventListener('i18n:change', applyOptgroupLabels);
 
   // ===== Initial state =====
   I18n.apply();
   updatePerfMonitor();
-  bindRegionConfigEvents();
-  setMode('position');
+  PMLayerPanel.init({
+    listEl: els.layerList,
+    configEl: els.layerConfig,
+    editor: null,
+    getColumns: function () { return parseNameData().columns; },
+    getImages: function () { return state.images; },
+    onChange: function () { if (state.sourceImage) renderPreview(); },
+    onPickWatermark: function (l) { state.pendingTargetLayer = l && l.id; els.watermarkInput.click(); }
+  });
+  bindLayerToolbar();
+  panelRender();
+  setTool('select');
+
+  /* 引导：把内部状态与重绘入口交给 onboarding，免得它反查 DOM 猜状态 */
+  window.PMGetState = function () { return state; };
+  window.PMRenderPreview = renderPreview;
+  window.PMPanelRender = panelRender;
+  if (window.PMOnboard) window.PMOnboard.init();
+
+  // ===== 明暗主题：localStorage 记忆，未设置时跟随系统 =====
+  var rootEl = document.documentElement;
+  function isDark() {
+    var t = rootEl.getAttribute('data-theme');
+    return t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function syncThemeMeta() {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isDark() ? '#1b1b1b' : '#e9e9e9');
+  }
+  try {
+    var savedTheme = localStorage.getItem('picmark-theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') rootEl.setAttribute('data-theme', savedTheme);
+  } catch (e) { /* 隐私模式等 localStorage 不可用：保持跟随系统 */ }
+  syncThemeMeta();
+  document.getElementById('themeToggle')?.addEventListener('click', function () {
+    var next = isDark() ? 'light' : 'dark';
+    rootEl.setAttribute('data-theme', next);
+    try { localStorage.setItem('picmark-theme', next); } catch (e) { /* 同上 */ }
+    syncThemeMeta();
+  });
+
+  // ===== 画布缩放（对数滑钮：25% ~ 400%，100% 落在滑轨正中）=====
+  var zoomValueEl = document.getElementById('zoomValue');
+  var zoomRangeEl = document.getElementById('zoomRange');
+  var ZOOM_MIN = 0.25, ZOOM_MAX = 4;
+  function sliderToZoom(v) { return ZOOM_MIN * Math.pow(ZOOM_MAX / ZOOM_MIN, v / 100); }
+  function zoomToSlider(z) { return 100 * Math.log(z / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN); }
+  function setZoom(z, fromSlider) {
+    state.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    if (zoomValueEl) zoomValueEl.textContent = Math.round(state.zoom * 100) + '%';
+    if (zoomRangeEl && !fromSlider) zoomRangeEl.value = zoomToSlider(state.zoom);
+    renderPreview();
+  }
+  zoomRangeEl?.addEventListener('input', function () { setZoom(sliderToZoom(parseFloat(zoomRangeEl.value)), true); });
+  document.getElementById('zoomFit')?.addEventListener('click', function () { setZoom(1); });
+  /* Ctrl/⌘ + 滚轮缩放；不带修饰键的滚轮留给页面/画布滚动 */
+  els.canvasWrapper?.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    setZoom(state.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+  }, { passive: false });
+  setZoom(1);
 
   // 语言切换后重新渲染预览
   document.querySelector('.lang-toggle')?.addEventListener('click', function () {
     setTimeout(function () {
       if (state.sourceImage) renderPreview();
-      if (state.regionEditor) renderRegionList();
+      panelRender();
     }, 50);
+  });
+
+  // ===== 步骤条：点击定位到对应卡片 =====
+  var stepBtns = document.querySelectorAll('.step');
+  stepBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      stepBtns.forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      var target = document.getElementById(btn.dataset.target);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
 })();
