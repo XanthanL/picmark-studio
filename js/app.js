@@ -11,6 +11,7 @@
     originalHeight: 0,
     outputScale: 1,            // output / original
     previewScale: 1,           // preview canvas / output (work image)
+    drawScale: 1,              // 位图 / 图像（放大时 < previewScale，CSS 负责拉伸）
     zoom: 1,                   // 用户缩放倍率，1 = 适应窗口
     customFontFace: null,
     customFontBuffer: null,
@@ -409,6 +410,8 @@
     /* 位图坐标系里实际用的是 canvasScale（放大时 target > canvasScale，
        CSS 负责拉伸）。旧版这里误用 target，导致放大后图层整体错位。 */
     const drawScale = canvasScale;
+    /* 取色要把「图像坐标」换算成位图坐标，用的正是这个系数 */
+    state.drawScale = canvasScale;
 
     if (state.layerEditor) {
       state.layerEditor.setScale(drawScale, scale);
@@ -537,7 +540,9 @@
     els.marker.style.display = 'none';
 
     if (state.layerEditor) {
-      var createMode = tool === 'region' ? 'create-region' : (tool === 'image' ? 'create-image' : 'select');
+      /* pick 模式下编辑器不接管指针（不选中、不拖动），别的按工具切绘制模式 */
+      var createMode = tool === 'pick' ? 'pick'
+        : (tool === 'region' ? 'create-region' : (tool === 'image' ? 'create-image' : 'select'));
       state.layerEditor.setMode(createMode);
     }
     els.modeHint.textContent = I18n.t('modeHint.' + tool);
@@ -557,24 +562,58 @@
     });
   });
 
-  // ===== Canvas Click =====
-  /* 只有取色工具还挂在 click 上；移动 / 缩放 / 放置都由图层编辑器的指针事件处理 */
-  els.canvas.addEventListener('click', (e) => {
-    if (!state.sourceImage) return;
-    if (state.tool !== 'pick') return;
-    const rect = els.canvas.getBoundingClientRect();
-    pickColor(e.clientX - rect.left, e.clientY - rect.top);
-  });
-
   // ===== Color Picker =====
-  function pickColor(canvasX, canvasY) {
-    const ix = Math.max(0, Math.min(Math.round(canvasX), els.canvas.width - 1));
-    const iy = Math.max(0, Math.min(Math.round(canvasY), els.canvas.height - 1));
-    const pixel = ctx.getImageData(ix, iy, 1, 1).data;
+  /* 取色一律走「底图坐标」，不走预览画布坐标：
+     · 预览画布上已经画了我们的文字，点在文字上会取到自己刚画的颜色（等于没取）
+     · 放大到 >100% 时 CSS 会拉伸画布，clientX 与位图像素不再是 1:1
+     所以先换算成图像坐标，再用 1×1 离屏画布从底图取样 —— 与缩放、与已画内容都无关。 */
+  var pickCanvas = null;
+  var pickCtx = null;
+
+  function pickColor(imgX, imgY) {
+    const img = state.sourceImage;
+    if (!img) return null;
+    if (!pickCanvas) {
+      pickCanvas = document.createElement('canvas');
+      pickCanvas.width = 1;
+      pickCanvas.height = 1;
+      pickCtx = pickCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const x = Math.max(0, Math.min(Math.round(imgX), img.width - 1));
+    const y = Math.max(0, Math.min(Math.round(imgY), img.height - 1));
+    pickCtx.clearRect(0, 0, 1, 1);
+    try {
+      pickCtx.drawImage(img, x, y, 1, 1, 0, 0, 1, 1);
+    } catch (err) {
+      return null;
+    }
+    const pixel = pickCtx.getImageData(0, 0, 1, 1).data;
     const hex = rgbToHex(pixel[0], pixel[1], pixel[2]);
     els.fontColor.value = hex;
+    /* 触发 input：同步色卡高亮 + 把颜色写回当前文字图层 + 重绘预览 */
+    fire(els.fontColor, 'input');
     updateMarker();
+    els.modeHint.textContent = activeTextLayer()
+      ? I18n.t('modeHint.picked', { hex: hex.toUpperCase() })
+      : I18n.t('modeHint.pickedNoLayer', { hex: hex.toUpperCase() });
+    return hex;
   }
+
+  /* 取色模式下点画布任何位置都只取色，不选中也不拖动图层。
+     capture 抢在图层编辑器前面，并阻止它继续处理这次按下。
+     用 pointerdown 而非 click：触屏上 touchstart 被 preventDefault 后不会合成 click。 */
+  els.canvas.addEventListener('pointerdown', (e) => {
+    if (!state.sourceImage || state.tool !== 'pick') return;
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = els.canvas.getBoundingClientRect();
+    const img = state.sourceImage;
+    /* 实测显示宽度反推缩放：CSS 可能二次压缩（max-width:100%），
+       比直接用 previewScale 更贴近眼睛看到的位置 */
+    const vs = (rect.width > 0 && img.width) ? rect.width / img.width : state.previewScale;
+    pickColor((e.clientX - rect.left) / vs, (e.clientY - rect.top) / vs);
+  }, true);
 
   // ===== Font Weight Validation =====
   function getWeightLabel(value) {
@@ -1246,7 +1285,7 @@
   /* 画布空白处的点击：按当前工具决定做什么 */
   function handleBackground(p) {
     if (state.tool === 'pick') {
-      pickColor(p.x * state.previewScale, p.y * state.previewScale);
+      pickColor(p.x, p.y);
       return;
     }
     if (state.tool === 'point') {

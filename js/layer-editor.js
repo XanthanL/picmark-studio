@@ -62,6 +62,8 @@
     setSize(w, h) { this.width = w; this.height = h; }
     setMode(mode) {
       this.mode = mode;
+      /* pick 是「只取色、不操作图层」的模式，光标交给 CSS 的 .pick-mode */
+      if (mode === 'pick') { this.canvas.style.cursor = ''; return; }
       this.canvas.style.cursor = mode === 'select' ? 'default' : 'crosshair';
     }
     getMode() { return this.mode; }
@@ -300,6 +302,8 @@
 
     _onDown(e) {
       if (!this.width || !this.height) return;
+      /* 取色模式：完全不接管指针，交给外层的取色逻辑 */
+      if (this.mode === 'pick') return;
       if (e.touches) e.preventDefault();
       const p = this._pos(e);
 
