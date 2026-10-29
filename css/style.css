@@ -2282,3 +2282,31 @@ textarea::placeholder { color: var(--ink-3); }
 
   .tour-bubble { width: calc(100vw - 24px); }
 }
+
+/* 手机窄屏（≤430px）：顶栏三段加起来会顶破视口宽度，
+   实测 360/390/414 下 scrollWidth 恒为 424（横向溢出 34–64px）。
+   这里把品牌文字收掉（印章还在，点它仍回首页）、步骤条压紧、
+   语言开关收窄，把总宽压回视口内。 */
+@media (max-width: 430px) {
+  .topbar {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .brand-text { display: none; }
+
+  .steps { gap: 0; }
+
+  .step {
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  .lang-toggle {
+    padding: 6px 11px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  .top-actions { gap: 6px; }
+}

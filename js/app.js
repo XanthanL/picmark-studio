@@ -809,7 +809,18 @@
         setWebFontStatus(I18n.t('font.web.fail', { name: name }));
       }
     }
-    if (changed && state.sourceImage) renderPreview();
+    if (!changed) return;
+    /* 字形到位后才真正生效：选中的那一刻字体还没下载完，图层里写的是
+       同风格的系统兜底栈。这里把真正的 family 回写进当前图层并重绘，
+       否则「选了马善政、画布还是楷体」会一直维持到用户下次动工具条。
+       下载期间如果用户切了别的图层，下拉值已被灌回那个图层的字体，
+       这时下拉不再是 web: —— 就不该再写，避免把字体落到错误的图层上。 */
+    const val = els.fontFamily.value;
+    if (val.indexOf(WEB_PREFIX) === 0) {
+      const idNow = val.slice(WEB_PREFIX.length);
+      if (state.webFonts[idNow] && !state.syncing) railToLayer();
+    }
+    if (state.sourceImage) renderPreview();
   }
 
   /* 出图时把「用得到的」字形数据交给 Worker（自定义字体 + 网络字体） */
