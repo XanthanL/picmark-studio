@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://xanthanl.github.io/picmark-studio/">
   <meta property="og:locale" content="zh_CN">
   <meta name="twitter:card" content="summary">
-  <link rel="stylesheet" href="css/style.css?v=13">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
 
@@ -267,6 +267,7 @@
           <button type="button" class="mode-btn" data-tool="point" data-i18n="tool.point">文字</button>
           <button type="button" class="mode-btn" data-tool="region" data-i18n="tool.region">区域</button>
           <button type="button" class="mode-btn" data-tool="image" data-i18n="tool.image">水印</button>
+          <button type="button" class="mode-btn mode-extra" id="camWmBtn" data-i18n="cam.btn">相机水印</button>
           <button type="button" class="mode-btn" data-tool="pick" data-i18n="mode.pick">取色</button>
           <div class="color-badge" title="当前文字颜色" data-i18n-title="colorBadge.title">
             <span id="pickedColor" class="color-swatch"></span>
@@ -397,6 +398,34 @@
   </footer>
 
   <!-- 首次访问引导气泡：只走一遍，之后可从顶栏问号重新唤起 -->
+  <!-- ===== 相机水印库（程序化生成，零素材依赖） ===== -->
+  <div class="cam-mask" id="camMask" hidden>
+    <div class="cam-card" role="dialog" aria-modal="true" aria-labelledby="camTitle">
+      <div class="cam-head">
+        <h3 id="camTitle" data-i18n="cam.title">相机水印</h3>
+        <button type="button" class="btn-small" id="camClose" data-i18n="cam.close">关闭</button>
+      </div>
+      <div class="cam-grid" id="camGrid"></div>
+      <div class="cam-fields">
+        <label class="cam-field"><span data-i18n="cam.brand">品牌</span><input type="text" id="camBrand"></label>
+        <label class="cam-field"><span data-i18n="cam.model">机型</span><input type="text" id="camModel"></label>
+        <label class="cam-field cam-wide"><span data-i18n="cam.lens">镜头 / 参数</span><input type="text" id="camLens"></label>
+        <label class="cam-field cam-wide"><span data-i18n="cam.tone">配色</span>
+          <select id="camTone">
+            <option value="dark" data-i18n="cam.tone.dark">深色字（浅底照片用）</option>
+            <option value="light" data-i18n="cam.tone.light">浅色字（深底照片用）</option>
+          </select>
+        </label>
+      </div>
+      <div class="cam-preview" id="camPreviewBox"><canvas id="camPreview"></canvas></div>
+      <p class="cam-note" data-i18n="cam.note">品牌名与商标归各厂商所有，这里只提供同类排版；文字均可修改，商用请替换为自有标识。</p>
+      <div class="cam-actions">
+        <button type="button" class="btn-small" id="camCancel" data-i18n="cam.cancel">取消</button>
+        <button type="button" class="primary-btn" id="camAdd" data-i18n="cam.add">加入画布</button>
+      </div>
+    </div>
+  </div>
+
   <div class="tour-bubble" id="tourBubble" hidden>
     <p class="tour-text"></p>
     <div class="tour-foot">
@@ -406,18 +435,19 @@
     </div>
   </div>
 
-  <script src="lib/jszip.min.js?v=13"></script>
-  <script src="lib/FileSaver.min.js?v=13"></script>
-  <script src="js/i18n.js?v=13"></script>
-  <script src="js/text-style.js?v=13"></script>
-  <script src="js/layers.js?v=13"></script>
-  <script src="js/layer-presets.js?v=13"></script>
-  <script src="js/custom-select.js?v=13"></script>
-  <script src="js/panel-controls.js?v=13"></script>
-  <script src="js/layer-editor.js?v=13"></script>
-  <script src="js/layer-panel.js?v=13"></script>
-  <script src="js/web-fonts.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
-  <script src="js/onboarding.js?v=13"></script>
+  <script src="lib/jszip.min.js?v=17"></script>
+  <script src="lib/FileSaver.min.js?v=17"></script>
+  <script src="js/i18n.js?v=17"></script>
+  <script src="js/text-style.js?v=17"></script>
+  <script src="js/layers.js?v=17"></script>
+  <script src="js/layer-presets.js?v=17"></script>
+  <script src="js/custom-select.js?v=17"></script>
+  <script src="js/panel-controls.js?v=17"></script>
+  <script src="js/layer-editor.js?v=17"></script>
+  <script src="js/layer-panel.js?v=17"></script>
+  <script src="js/web-fonts.js?v=17"></script>
+  <script src="js/camera-wm.js?v=17"></script>
+  <script src="js/app.js?v=17"></script>
+  <script src="js/onboarding.js?v=17"></script>
 </body>
 </html>

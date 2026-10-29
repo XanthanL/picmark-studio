@@ -100,6 +100,18 @@
     layerLoad: document.getElementById('layerLoad'),
     layerConfigInput: document.getElementById('layerConfigInput'),
     watermarkInput: document.getElementById('watermarkInput'),
+    camWmBtn: document.getElementById('camWmBtn'),
+    camMask: document.getElementById('camMask'),
+    camGrid: document.getElementById('camGrid'),
+    camBrand: document.getElementById('camBrand'),
+    camModel: document.getElementById('camModel'),
+    camLens: document.getElementById('camLens'),
+    camTone: document.getElementById('camTone'),
+    camPreview: document.getElementById('camPreview'),
+    camPreviewBox: document.getElementById('camPreviewBox'),
+    camAdd: document.getElementById('camAdd'),
+    camCancel: document.getElementById('camCancel'),
+    camClose: document.getElementById('camClose'),
   };
 
   const ctx = els.canvas.getContext('2d');
@@ -551,6 +563,7 @@
 
   els.modeBtns.forEach((btn) => {
     var tool = btn.dataset.tool;
+    if (!tool) return;   // 「相机水印」这类附加按钮没有 data-tool
     btn.addEventListener('click', () => {
       if (tool === 'image') {
         /* 水印必须先有图：直接开文件选择，选完再进入拖框状态 */
@@ -1341,29 +1354,37 @@
         return;
       }
       var meta = state.imageMeta[key] || { w: 100, h: 100 };
-      var tw, th;
+      var tw, th, ix, iy;
       if (rect.w > 0 && rect.h > 0) {
+        /* 拖框：rect 是左上角 + 宽高，直接用，不能再减半 ——
+           旧版一律 rect.x - w/2，导致图层整体往左上跑半个框 */
         tw = rect.w; th = rect.h;
+        ix = rect.x; iy = rect.y;
       } else {
+        /* 单击：以点击点为圆心放默认大小 */
         tw = W * 0.3;
         th = tw * (meta.h / Math.max(1, meta.w));
+        ix = rect.x - tw / 2;
+        iy = rect.y - th / 2;
       }
       layer = PMLayers.create('image', {
         name: (meta.name || I18n.t('layer.watermark', '水印')).replace(/\.[a-z]+$/i, ''),
         imageKey: key,
-        x: Math.round(rect.x - tw / 2),
-        y: Math.round(rect.y - th / 2),
+        x: Math.round(ix),
+        y: Math.round(iy),
         w: Math.round(tw),
         h: Math.round(th)
       });
     } else {
       var rw = rect.w > 0 ? rect.w : W * 0.4;
       var rh = rect.h > 0 ? rect.h : H * 0.15;
+      var rx = rect.w > 0 ? rect.x : rect.x - rw / 2;
+      var ry = rect.h > 0 ? rect.y : rect.y - rh / 2;
       layer = PMLayers.create('text', {
         mode: 'region',
         name: I18n.t('layer.region', '区域') + ' ' + (state.layers.length + 1),
-        x: Math.round(rect.x - rw / 2),
-        y: Math.round(rect.y - rh / 2),
+        x: Math.round(rx),
+        y: Math.round(ry),
         w: Math.round(rw),
         h: Math.round(rh),
         autoFit: true
@@ -1413,6 +1434,128 @@
     img.onerror = function () { URL.revokeObjectURL(url); };
     img.src = url;
   });
+
+  /* ===== 相机水印库 =====
+     相机 / 手机厂商那种「机型 + 镜头参数」水印，全部按参数现画成 PNG，
+     再走和上传水印同一条路（image 图层），所以缩放 / 旋转 / 透明度 / 翻转
+     全都能用，出图时也是同一套位图数据，不存在预览与成品不一致。 */
+  var CAM = { style: 'leica', tone: 'dark' };
+
+  function makeCanvas(w, h) {
+    var c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    return c;
+  }
+
+  function camLang() {
+    return (window.I18n && I18n.current && I18n.current() === 'en') ? 'en' : 'zh';
+  }
+
+  function camDrawPreview() {
+    if (!window.PMCameraWm) return;
+    var r = PMCameraWm.render({
+      style: CAM.style, brand: els.camBrand.value, model: els.camModel.value,
+      lens: els.camLens.value, tone: els.camTone.value, h: 200
+    }, makeCanvas);
+    var cv = els.camPreview;
+    cv.width = r.w;
+    cv.height = r.h;
+    var g = cv.getContext('2d');
+    g.clearRect(0, 0, r.w, r.h);
+    g.drawImage(r.canvas, 0, 0);
+    /* 预览底色跟着配色走：深色字配浅底、浅色字配深底，所见即所得 */
+    els.camPreviewBox.dataset.tone = els.camTone.value;
+  }
+
+  function camBuildGrid() {
+    if (!window.PMCameraWm) return;
+    els.camGrid.innerHTML = '';
+    PMCameraWm.styles.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cam-item';
+      btn.setAttribute('aria-pressed', String(s.id === CAM.style));
+      var r = PMCameraWm.render({ style: s.id, h: 90 }, makeCanvas);
+      var c = document.createElement('canvas');
+      c.width = r.w;
+      c.height = r.h;
+      c.getContext('2d').drawImage(r.canvas, 0, 0);
+      var span = document.createElement('span');
+      span.textContent = camLang() === 'en' ? s.en : s.zh;
+      btn.appendChild(c);
+      btn.appendChild(span);
+      btn.addEventListener('click', function () {
+        CAM.style = s.id;
+        els.camBrand.value = s.brand;
+        els.camModel.value = s.model;
+        els.camLens.value = s.lens;
+        els.camGrid.querySelectorAll('.cam-item').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+        camDrawPreview();
+      });
+      els.camGrid.appendChild(btn);
+    });
+  }
+
+  function camOpen() {
+    if (!window.PMCameraWm) return;
+    if (!state.sourceImage) { els.modeHint.textContent = I18n.t('cam.needImage'); return; }
+    camBuildGrid();
+    if (!els.camModel.value) {
+      var s = PMCameraWm.byId(CAM.style) || PMCameraWm.styles[0];
+      els.camBrand.value = s.brand;
+      els.camModel.value = s.model;
+      els.camLens.value = s.lens;
+    }
+    els.camTone.value = CAM.tone;
+    camDrawPreview();
+    els.camMask.hidden = false;
+  }
+
+  function camClose() { els.camMask.hidden = true; }
+
+  function camAddToCanvas() {
+    if (!window.PMCameraWm || !state.sourceImage) return;
+    var name = (els.camModel.value || els.camBrand.value || I18n.t('layer.watermark', '水印'))
+      .replace(/[\\/:*?"<>|]/g, '').trim() || 'camera-mark';
+    var r = PMCameraWm.render({
+      style: CAM.style, brand: els.camBrand.value, model: els.camModel.value,
+      lens: els.camLens.value, tone: els.camTone.value, h: 480
+    }, makeCanvas);
+    CAM.tone = els.camTone.value;
+    var done = function (blob) {
+      if (!blob) return;
+      var file = new File([blob], name + '.png', { type: 'image/png' });
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      els.watermarkInput.files = dt.files;
+      fire(els.watermarkInput, 'change');
+      camClose();
+    };
+    if (r.canvas.toBlob) r.canvas.toBlob(done, 'image/png');
+    else if (r.canvas.convertToBlob) r.canvas.convertToBlob({ type: 'image/png' }).then(done);
+  }
+
+  if (els.camWmBtn) {
+    els.camWmBtn.addEventListener('click', camOpen);
+    els.camClose.addEventListener('click', camClose);
+    els.camCancel.addEventListener('click', camClose);
+    els.camAdd.addEventListener('click', camAddToCanvas);
+    els.camMask.addEventListener('click', function (e) { if (e.target === els.camMask) camClose(); });
+    [els.camBrand, els.camModel, els.camLens].forEach(function (el) {
+      el.addEventListener('input', camDrawPreview);
+    });
+    els.camTone.addEventListener('change', camDrawPreview);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !els.camMask.hidden) camClose();
+    });
+    /* 语言切换后重画一次：缩略图上的品牌名是动态生成的，不吃 data-i18n */
+    window.addEventListener('i18n:change', function () {
+      if (!els.camMask.hidden) camBuildGrid();
+    });
+  }
 
   /* ===== 图层面板按钮 ===== */
   function bindLayerToolbar() {

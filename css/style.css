@@ -638,6 +638,7 @@ select.cus-hidden {
 /* 模式切换：凹槽轨道 + 反相滑块 */
 .mode-switch {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
   padding: 4px;
@@ -2244,9 +2245,14 @@ textarea::placeholder { color: var(--ink-3); }
 
   .mode-btn {
     flex: 1;
-    padding: 9px 12px;
+    padding: 9px 8px;
+    font-size: 12px;
+    white-space: nowrap;
     text-align: center;
   }
+
+  /* 「相机水印」四个字，给它多一点份额，别折成两行 */
+  .mode-extra { flex: 1.6; }
 
   .color-badge {
     margin-left: 0;
@@ -2309,4 +2315,153 @@ textarea::placeholder { color: var(--ink-3); }
   }
 
   .top-actions { gap: 6px; }
+}
+
+/* ===== 相机水印库 ===== */
+.cam-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.cam-mask[hidden] { display: none; }
+
+.cam-card {
+  width: min(700px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  padding: 22px;
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  box-shadow: var(--nm-out), var(--float);
+}
+
+.cam-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cam-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+}
+
+.cam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.cam-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  box-shadow: var(--nm-sm);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.cam-item:hover { box-shadow: var(--nm-out); }
+.cam-item[aria-pressed="true"] { box-shadow: var(--nm-in-sm); }
+
+.cam-item canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #f3f1ec;
+  border-radius: 3px;
+}
+
+.cam-item span {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.cam-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin-bottom: 16px;
+}
+
+.cam-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+.cam-field.cam-wide { grid-column: 1 / -1; }
+
+.cam-field input,
+.cam-field select {
+  padding: 9px 12px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  box-shadow: var(--nm-in-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.cam-field input:focus,
+.cam-field select:focus { outline: 2px solid var(--ink-3); outline-offset: 1px; }
+
+.cam-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-radius: var(--r);
+  background: #f3f1ec;
+  box-shadow: var(--nm-in-sm);
+}
+
+/* 预览底色跟着配色走：深色字配浅底、浅色字配深底，所见即所得 */
+.cam-preview[data-tone="light"] { background: #151515; }
+
+.cam-preview canvas { display: block; max-width: 100%; height: 54px; }
+
+.cam-note {
+  margin: 0 0 16px;
+  font-size: 11px;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+
+.cam-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .cam-fields { grid-template-columns: minmax(0, 1fr); }
+  .cam-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }

@@ -360,9 +360,13 @@ async function step(title, expr, shotName, shotSel, assertFn) {
     __S.dragBox(210, 390, 650, 470);
     await __S.sleep(400);
     var l = __S.lastLayer('text');
-    return { mode: l && l.mode, w: l && l.w, h: l && l.h, autoFit: l && l.autoFit, size: l && l.fontSize };
+    /* 拖框的左上角必须落在起拖点上：旧版把 rect.x 当中心又减了半个框，
+       图层会整体往左上跑半框，这里钉死回归 */
+    return { mode: l && l.mode, x: l && l.x, y: l && l.y, w: l && l.w, h: l && l.h,
+             autoFit: l && l.autoFit, size: l && l.fontSize };
   `, '02-region.png', '.canvas-wrapper',
-    (v) => [v && v.mode === 'region' && v.autoFit === true, v ? `区域 ${v.w}×${v.h}，autoFit=${v.autoFit}` : '']);
+    (v) => [v && v.mode === 'region' && v.autoFit === true && Math.abs(v.x - 210) <= 2 && Math.abs(v.y - 390) <= 2,
+      v ? `区域 ${v.w}×${v.h} 落在 (${v.x},${v.y})，autoFit=${v.autoFit}` : '']);
 
   /* 3a. 区域自适应：短名 */
   await step('区域自适应 A：短名「李」（字号顶到上限）', `
@@ -539,10 +543,99 @@ async function step(title, expr, shotName, shotSel, assertFn) {
     }
   }
 
+  /* 13c. 相机水印：程序化生成 → 放进画布（走和上传水印同一条路） */
+  await step('相机水印库：程序化生成 + 放置画布', `
+    var btn = __S.gid('camWmBtn'); btn.click();
+    await __S.sleep(400);
+    var mask = __S.gid('camMask');
+    var opened = !mask.hidden;
+    var items = document.querySelectorAll('#camGrid .cam-item');
+    /* 选第 2 款（小米 × 徕卡）：验证切换样式会重填机型/参数 */
+    if (items[1]) items[1].click();
+    await __S.sleep(300);
+    var model = __S.gid('camModel').value;
+    var lens = __S.gid('camLens').value;
+    var keyBefore = PMGetState().pendingWatermark;
+    __S.gid('camAdd').click();
+    /* toBlob 是异步的，等水印真的进了库再继续（旧值是上一张 300×300 的水印） */
+    var key = null, meta = null;
+    for (var i = 0; i < 60; i++) {
+      await __S.sleep(200);
+      var k = PMGetState().pendingWatermark;
+      if (k && k !== keyBefore) {
+        key = k;
+        meta = PMGetState().imageMeta[k];
+        if (meta && meta.w > 800) break;
+      }
+    }
+    var tool = PMGetState().tool;
+    var closed = mask.hidden;
+    __S.dragBox(95, 330, 405, 412);
+    await __S.sleep(500);
+    var l = __S.lastLayer('image');
+    /* 客观验证「红标真的画上去了」：统计框内品牌红像素 */
+    var s = PMGetState().drawScale || 1;
+    var cv2 = __S.gid('previewCanvas');
+    var d = cv2.getContext('2d').getImageData(
+      Math.round(l.x * s), Math.round(l.y * s), Math.round(l.w * s), Math.round(l.h * s)).data;
+    var red = 0, ink = 0;
+    for (var j = 0; j < d.length; j += 4) {
+      if (d[j] > 140 && d[j + 1] < 90 && d[j + 2] < 90) red++;
+      if (d[j] < 110 && d[j + 1] < 110 && d[j + 2] < 110) ink++;
+    }
+    return { opened: opened, closed: closed, styles: items.length, model: model, lens: lens,
+             key: key, tool: tool, w: meta && meta.w, h: meta && meta.h, red: red, ink: ink,
+             id: l && l.id, lx: l && l.x, ly: l && l.y,
+             lw: l && Math.round(l.w), lh: l && Math.round(l.h) };
+  `, '07d-camera-mark.png', '.canvas-wrapper',
+    (v) => [v && v.opened && v.closed && v.styles >= 10 && v.key && v.id && v.lw > 0 && v.w > 800
+      && v.red > 50 && Math.abs(v.lx - 95) <= 2 && Math.abs(v.ly - 330) <= 2,
+      v ? `样式 ${v.styles} 款，机型「${v.model}」，生成 ${v.w}×${v.h} PNG → 框内 ${v.lw}×${v.lh} @(${v.lx},${v.ly})（品牌红标 ${v.red} px / 墨迹 ${v.ink} px）` : '']);
+
+  /* 13d. 相机水印全家福：15 款并排渲染，一眼看完 */
+  {
+    const dataUrl = await evaluate(`(async () => {
+      var W = window.PMCameraWm;
+      if (!W) return null;
+      var H = 104, PAD = 26, CW = 900;
+      var c = document.createElement('canvas');
+      c.width = CW;
+      c.height = W.styles.length * (H + 44) + PAD * 2;
+      var g = c.getContext('2d');
+      g.fillStyle = '#f3f1ec'; g.fillRect(0, 0, c.width, c.height);
+      var y = PAD;
+      W.styles.forEach(function (s) {
+        var r = W.render({ style: s.id, h: H * 2 }, function (w, h) {
+          var cc = document.createElement('canvas'); cc.width = w; cc.height = h; return cc;
+        });
+        var k = H / r.h;
+        g.drawImage(r.canvas, PAD, y, r.w * k, H);
+        g.fillStyle = '#7a7a7a';
+        g.font = '15px "Microsoft YaHei", sans-serif';
+        g.textBaseline = 'alphabetic';
+        g.fillText(s.zh + '  ·  ' + s.en + '  ·  ' + s.model, PAD, y + H + 26);
+        y += H + 44;
+      });
+      return c.toDataURL('image/png');
+    })()`);
+    if (dataUrl && dataUrl.indexOf('base64,') > 0) {
+      fs.writeFileSync(path.join(OUT, '07c-camera-marks.png'), Buffer.from(dataUrl.split('base64,')[1], 'base64'));
+      report.push({
+        title: '相机水印全家福（15 款 · 程序化生成）', ok: true,
+        note: '徕卡 / 哈苏 / 蔡司 / 富士 / 尼康 / 佳能 / 索尼 / 理光 / 柯达 / 手机联名等，纯 canvas 现画，无素材依赖',
+        shot: '07c-camera-marks.png', err: null, data: null
+      });
+      console.log('PASS  相机水印全家福 — 07c-camera-marks.png');
+    }
+  }
+
   /* 14. 取色 */
   await step('取色：点底图右下红色印章 → 文字变色', `
-    /* 工具条改的是「当前选中图层」，取色同样写回它 */
-    var l = PMGetState().layerEditor.active() || __S.layers()[0];
+    /* 工具条改的是「当前选中图层」，取色同样写回它；
+       上一步刚插入的是水印图层，这里显式切回文字图层再取色 */
+    var l = __S.layers().filter(function (x) { return x.type === 'text'; })[0];
+    PMGetState().layerEditor.setActive(l.id);
+    await __S.sleep(200);
     var before = l.color;
     __S.tool('pick');
     await __S.sleep(200);
