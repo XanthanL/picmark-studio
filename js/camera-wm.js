@@ -7,97 +7,64 @@
    canvas 由调用方通过 makeCanvas 提供（浏览器 document.createElement，
    小程序 wx.createOffscreenCanvas），所以这个文件不碰 DOM。
 
-   ⚠ 商标说明：下列品牌名与配色只是「帮助用户做出同类排版」的默认值，
-   品牌与商标归各自厂商所有。文字一律可编辑，商用请替换成自有标识。
+   模板只提供「中立排版」：圆标 / 方块标 / 竖条 / 纯字标 四种几何形态 ×
+   衬线 / 无衬线 / 等宽 × 三档字距。不含任何品牌名、品牌色或品牌字标 ——
+   商标归各自厂商，要复刻官方样式请自行上传 PNG，或把颜色字段改成你的品牌色。
    ============================================================ */
 (function (root) {
   'use strict';
 
   var SANS = '"Helvetica Neue", Arial, "Segoe UI", system-ui, sans-serif';
   var SERIF = 'Didot, "Bodoni MT", Georgia, "Times New Roman", serif';
+  var MONO = '"SF Mono", "Roboto Mono", Menlo, Consolas, "Courier New", monospace';
+
+  /* 中性占位：明摆着是让你改的，不是任何人的商标 */
+  var PH_BRAND = '';
+  var PH_MODEL = 'MY CAMERA';
+  var PH_LENS = '50mm f/1.4 · 1/500 · ISO 200';
 
   /* mark: dot 圆标 / square 圆角方块标 / bar 竖条 / none 纯文字
-     tracking: 字距（em 倍数）；ink: 文字墨色（不填则跟随 tone） */
+     tracking: 字距（em 倍数）；ratio: 徽标直径或块高（画布高的倍数）
+     barW: bar 形态下竖条粗细（画布高的倍数） */
   var STYLES = [
-    {
-      id: 'leica', zh: '徕卡', en: 'Leica', face: SERIF,
-      brand: 'Leica', model: 'M11', lens: 'SUMMILUX-M 50mm f/1.4 ASPH',
-      mark: 'dot', markColor: '#c8102e', markInk: '#ffffff', markRatio: 0.72
-    },
-    {
-      id: 'leica-xiaomi', zh: '小米 × 徕卡', en: 'Xiaomi × Leica', face: SERIF,
-      brand: 'Leica', model: 'XIAOMI 14 ULTRA', lens: '50mm f/1.6 · 1/120 · ISO 100',
-      mark: 'dot', markColor: '#c8102e', markInk: '#ffffff', markRatio: 0.68
-    },
-    {
-      id: 'hasselblad', zh: '哈苏', en: 'Hasselblad', face: SANS,
-      brand: 'HASSELBLAD', model: 'HASSELBLAD', modelTracking: 0.2,
-      lens: 'X2D 100C · XCD 55V f/2.5', mark: 'none'
-    },
-    {
-      id: 'oppo-hasselblad', zh: 'OPPO × 哈苏', en: 'OPPO × Hasselblad', face: SANS,
-      brand: 'HASSELBLAD', model: 'HASSELBLAD', modelTracking: 0.18,
-      lens: 'OPPO Find X7 Ultra · 23mm f/1.8', mark: 'none'
-    },
-    {
-      id: 'zeiss', zh: '蔡司', en: 'ZEISS', face: SANS,
-      brand: 'ZEISS', model: 'Otus', lens: '55mm f/1.4 · ZEISS',
-      mark: 'square', markColor: '#004e91', markInk: '#ffffff', markRatio: 0.6
-    },
-    {
-      id: 'vivo-zeiss', zh: 'vivo × 蔡司', en: 'vivo × ZEISS', face: SANS,
-      brand: 'ZEISS', model: 'vivo X100 Pro', lens: '50mm f/1.75 · ZEISS',
-      mark: 'square', markColor: '#004e91', markInk: '#ffffff', markRatio: 0.58
-    },
-    {
-      id: 'fujifilm', zh: '富士', en: 'FUJIFILM', face: SANS,
-      brand: 'FUJIFILM', model: 'FUJIFILM', modelTracking: 0.12, ink: '#00953d',
-      lens: 'GFX100 II · GF63mm F2.8 R WR', mark: 'none'
-    },
-    {
-      id: 'nikon', zh: '尼康', en: 'Nikon', face: SANS,
-      brand: 'Nikon', model: 'Z 9', lens: 'NIKKOR Z 50mm f/1.2 S',
-      mark: 'square', markColor: '#ffd400', markInk: '#111111', markRatio: 0.62
-    },
-    {
-      id: 'canon', zh: '佳能', en: 'Canon', face: SERIF,
-      brand: 'Canon', model: 'Canon', ink: '#cc0000', lens: 'EOS R5 · RF50mm F1.2 L USM',
-      mark: 'bar', markColor: '#cc0000', markRatio: 0.6
-    },
-    {
-      id: 'sony', zh: '索尼', en: 'SONY', face: SANS,
-      brand: 'SONY', model: 'SONY', modelTracking: 0.16, lens: 'α7R V · FE 50mm F1.2 GM',
-      mark: 'none'
-    },
-    {
-      id: 'ricoh', zh: '理光 GR', en: 'Ricoh GR', face: SANS,
-      brand: 'GR', model: 'GR III', lens: '28mm f/2.8 · RICOH',
-      mark: 'bar', markColor: '#111111', markRatio: 0.62
-    },
-    {
-      id: 'kodak', zh: '柯达胶片', en: 'Kodak Film', face: SANS,
-      brand: 'Kodak', model: 'Portra 400', lens: '35mm · 2026',
-      mark: 'square', markColor: '#f2a100', markInk: '#111111', markRatio: 0.6
-    },
-    {
-      id: 'leica-sl', zh: '徕卡 SL', en: 'Leica SL', face: SERIF,
-      brand: 'Leica', model: 'SL3', lens: 'VARIO-ELMARIT 24-70mm f/2.8 ASPH',
-      mark: 'dot', markColor: '#c8102e', markInk: '#ffffff', markRatio: 0.68
-    },
-    {
-      id: 'sigma', zh: '适马', en: 'Sigma', face: SANS,
-      brand: 'SIGMA', model: 'SIGMA fp L', modelTracking: 0.1, lens: '45mm f/2.8 DG DN',
-      mark: 'bar', markColor: '#111111', markRatio: 0.6
-    },
-    {
-      id: 'plain', zh: '纯参数条', en: 'Plain EXIF', face: SANS,
-      brand: '', model: '50mm f/1.4', modelTracking: 0.04,
-      lens: '1/500 · ISO 200', mark: 'none'
-    }
+    { id: 'dot-serif', zh: '圆标 · 衬线', en: 'Dot · Serif', face: SERIF,
+      mark: 'dot', ratio: 0.72, tracking: 0.03 },
+    { id: 'dot-sans', zh: '圆标 · 无衬线', en: 'Dot · Sans', face: SANS,
+      mark: 'dot', ratio: 0.72, tracking: 0.04 },
+    { id: 'dot-wide', zh: '圆标 · 宽字距', en: 'Dot · Wide', face: SANS,
+      mark: 'dot', ratio: 0.68, tracking: 0.18 },
+    { id: 'dot-mini', zh: '小圆点 · 紧凑', en: 'Mini Dot', face: SANS,
+      mark: 'dot', ratio: 0.4, tracking: 0.06 },
+    { id: 'block-bold', zh: '方块 · 粗体', en: 'Block · Bold', face: SANS,
+      mark: 'square', ratio: 0.6, tracking: 0.03 },
+    { id: 'block-serif', zh: '方块 · 衬线', en: 'Block · Serif', face: SERIF,
+      mark: 'square', ratio: 0.6, tracking: 0.03 },
+    { id: 'block-wide', zh: '方块 · 宽字距', en: 'Block · Wide', face: SANS,
+      mark: 'square', ratio: 0.58, tracking: 0.14 },
+    { id: 'bar-serif', zh: '竖条 · 衬线', en: 'Bar · Serif', face: SERIF,
+      mark: 'bar', barW: 0.07, tracking: 0.03 },
+    { id: 'bar-sans', zh: '竖条 · 无衬线', en: 'Bar · Sans', face: SANS,
+      mark: 'bar', barW: 0.06, tracking: 0.06 },
+    { id: 'bar-hair', zh: '细竖线 · 精致', en: 'Hairline', face: SANS,
+      mark: 'bar', barW: 0.022, tracking: 0.12 },
+    { id: 'word-wide', zh: '字标 · 超宽', en: 'Wordmark · Wide', face: SANS,
+      mark: 'none', tracking: 0.2 },
+    { id: 'word-mid', zh: '字标 · 中等', en: 'Wordmark · Mid', face: SANS,
+      mark: 'none', tracking: 0.12 },
+    { id: 'word-serif', zh: '字标 · 衬线', en: 'Wordmark · Serif', face: SERIF,
+      mark: 'none', tracking: 0.04 },
+    { id: 'word-mono', zh: '字标 · 等宽', en: 'Wordmark · Mono', face: MONO,
+      mark: 'none', tracking: 0.08 },
+    { id: 'plain', zh: '纯参数条', en: 'Plain EXIF', face: SANS,
+      mark: 'none', tracking: 0.04 }
   ];
 
   var byId = {};
   STYLES.forEach(function (s) { byId[s.id] = s; });
+
+  function defaults() {
+    return { brand: PH_BRAND, model: PH_MODEL, lens: PH_LENS };
+  }
 
   /* 手动推进光标实现字距 —— canvas 的 letterSpacing 在
      OffscreenCanvas / 小程序里支持不一致，会导致测量与绘制错位 */
@@ -122,39 +89,67 @@
     ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
   }
+  /* 徽标里的文字按可用宽度收缩，填多长的品牌名都不会顶破标 */
+  function fitFont(ctx, text, size, weight, face, max) {
+    var fs = size;
+    ctx.font = weight + ' ' + fs + 'px ' + face;
+    var w = ctx.measureText(text).width;
+    if (w > max && w > 0) {
+      fs = fs * max / w;
+      ctx.font = weight + ' ' + fs + 'px ' + face;
+    }
+    return fs;
+  }
+  /* 徽标底色可自定义，墨色按亮度自动翻转，填亮黄也不会糊成一片 */
+  function inkOn(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
+    if (!m) return '#ffffff';
+    var n = parseInt(m[1], 16);
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return (r * 299 + g * 587 + b * 114) / 1000 > 140 ? '#111111' : '#ffffff';
+  }
 
-  /* opts: { style, brand, model, lens, tone:'dark'|'light', h } */
+  /* opts: { style, brand, model, lens, tone:'dark'|'light', markColor, h } */
   function render(opts, makeCanvas) {
     opts = opts || {};
     var s = byId[opts.style] || STYLES[0];
     var H = Math.max(48, opts.h || 400);
-    var brand = opts.brand != null ? opts.brand : s.brand;
-    var model = opts.model != null ? opts.model : s.model;
-    var lens = opts.lens != null ? opts.lens : s.lens;
+    var d = defaults();
+    var brand = opts.brand != null ? opts.brand : d.brand;
+    var model = opts.model != null ? opts.model : d.model;
+    var lens = opts.lens != null ? opts.lens : d.lens;
     var light = opts.tone === 'light';
     var ink = light ? '#ffffff' : (opts.ink || s.ink || '#111111');
     var face = s.face || SANS;
+    /* 徽标默认与文字同色（永远协调）；填了颜色就用填的 */
+    var mc = opts.markColor || s.markColor || ink;
 
     var probe = makeCanvas(8, 8).getContext('2d');
-    var sizeModel = H * (s.mark === 'none' && brand === model ? 0.3 : 0.32);
+    var sizeModel = H * 0.32;
     var sizeLens = H * 0.155;
-    var trModel = (s.modelTracking || 0.03) * sizeModel;
+    var sizeBrand = H * 0.16;
+    var trModel = (s.tracking || 0.03) * sizeModel;
     var trLens = 0.055 * sizeLens;
+    var trBrand = 0.14 * sizeBrand;
+    /* 竖条 / 纯字标没有放品牌的容器，这时把品牌名提到文字块上方单独一行 */
+    var three = !!brand && (s.mark === 'bar' || s.mark === 'none');
 
     probe.font = '600 ' + sizeModel + 'px ' + face;
     var wModel = model ? trackedWidth(probe, model, trModel) : 0;
     probe.font = '400 ' + sizeLens + 'px ' + face;
     var wLens = lens ? trackedWidth(probe, lens, trLens) : 0;
-    var wText = Math.max(wModel, wLens);
+    probe.font = '500 ' + sizeBrand + 'px ' + face;
+    var wBrand = three ? trackedWidth(probe, brand, trBrand) : 0;
+    var wText = Math.max(wModel, wLens, wBrand);
 
     /* 徽标 */
-    var D = H * (s.markRatio || 0.68);
+    var D = H * (s.ratio || 0.68);
     var markW = 0;
     if (s.mark === 'dot') markW = D;
     else if (s.mark === 'square') {
       probe.font = '700 ' + D * 0.4 + 'px ' + face;
-      markW = Math.max(D * 1.35, trackedWidth(probe, brand, D * 0.05) + D * 0.5);
-    } else if (s.mark === 'bar') markW = D * 0.16;
+      markW = Math.max(D * 1.35, brand ? trackedWidth(probe, brand, D * 0.05) + D * 0.5 : 0);
+    } else if (s.mark === 'bar') markW = H * (s.barW || 0.06);
     var gap = (markW && wText) ? H * 0.16 : 0;
     var pad = H * 0.06;
     var W = Math.ceil(pad * 2 + markW + gap + wText);
@@ -166,29 +161,29 @@
 
     var x = pad;
     if (s.mark === 'dot') {
-      ctx.fillStyle = s.markColor;
+      ctx.fillStyle = mc;
       ctx.beginPath(); ctx.arc(x + D / 2, H / 2, D / 2, 0, Math.PI * 2); ctx.fill();
       if (brand) {
-        ctx.fillStyle = s.markInk || '#fff';
-        ctx.font = '400 ' + (D * 0.34) + 'px ' + face;
+        ctx.fillStyle = inkOn(mc);
+        fitFont(ctx, brand, D * 0.34, '400', face, D * 0.78);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(brand, x + D / 2, H / 2 + D * 0.02);
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       }
       x += D;
     } else if (s.mark === 'square') {
-      ctx.fillStyle = s.markColor;
+      ctx.fillStyle = mc;
       roundRect(ctx, x, (H - D) / 2, markW, D, D * 0.14); ctx.fill();
       if (brand) {
-        ctx.fillStyle = s.markInk || '#fff';
-        ctx.font = '700 ' + (D * 0.4) + 'px ' + face;
+        ctx.fillStyle = inkOn(mc);
+        fitFont(ctx, brand, D * 0.4, '700', face, markW * 0.84);
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(brand, x + markW / 2, H / 2);
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       }
       x += markW;
     } else if (s.mark === 'bar') {
-      ctx.fillStyle = s.markColor;
+      ctx.fillStyle = mc;
       ctx.fillRect(x, H * 0.16, markW, H * 0.68);
       x += markW;
     }
@@ -200,7 +195,19 @@
       ctx.shadowOffsetY = H * 0.015;
     }
     var tx = x + gap;
-    if (model && lens) {
+    if (three) {
+      ctx.fillStyle = ink;
+      ctx.font = '500 ' + sizeBrand + 'px ' + face;
+      drawTracked(ctx, brand, tx, H * 0.32, trBrand);
+      if (model) {
+        ctx.font = '600 ' + sizeModel + 'px ' + face;
+        drawTracked(ctx, model, tx, H * 0.66, trModel);
+      }
+      if (lens) {
+        ctx.font = '400 ' + sizeLens + 'px ' + face;
+        drawTracked(ctx, lens, tx, H * 0.9, trLens);
+      }
+    } else if (model && lens) {
       ctx.fillStyle = ink;
       ctx.font = '600 ' + sizeModel + 'px ' + face;
       drawTracked(ctx, model, tx, H * 0.53, trModel);
@@ -223,6 +230,7 @@
   root.PMCameraWm = {
     styles: STYLES,
     byId: function (id) { return byId[id] || null; },
+    defaults: defaults,
     render: render
   };
 })(typeof window !== 'undefined' ? window : this);

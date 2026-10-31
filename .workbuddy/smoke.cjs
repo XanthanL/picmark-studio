@@ -550,11 +550,15 @@ async function step(title, expr, shotName, shotSel, assertFn) {
     var mask = __S.gid('camMask');
     var opened = !mask.hidden;
     var items = document.querySelectorAll('#camGrid .cam-item');
-    /* 选第 2 款（小米 × 徕卡）：验证切换样式会重填机型/参数 */
+    /* 选第 2 款：验证切换样式会重填默认文案（此时用户还没手动改过） */
     if (items[1]) items[1].click();
     await __S.sleep(300);
     var model = __S.gid('camModel').value;
     var lens = __S.gid('camLens').value;
+    /* 自定义徽标颜色：默认跟随墨色，填了就用填的（中性模板不含任何品牌色） */
+    var mc = __S.gid('camMarkColor');
+    mc.value = '#c8102e'; __S.fire(mc, 'input');
+    await __S.sleep(300);
     var keyBefore = PMGetState().pendingWatermark;
     __S.gid('camAdd').click();
     /* toBlob 是异步的，等水印真的进了库再继续（旧值是上一张 300×300 的水印） */
@@ -590,39 +594,47 @@ async function step(title, expr, shotName, shotSel, assertFn) {
   `, '07d-camera-mark.png', '.canvas-wrapper',
     (v) => [v && v.opened && v.closed && v.styles >= 10 && v.key && v.id && v.lw > 0 && v.w > 800
       && v.red > 50 && Math.abs(v.lx - 95) <= 2 && Math.abs(v.ly - 330) <= 2,
-      v ? `样式 ${v.styles} 款，机型「${v.model}」，生成 ${v.w}×${v.h} PNG → 框内 ${v.lw}×${v.lh} @(${v.lx},${v.ly})（品牌红标 ${v.red} px / 墨迹 ${v.ink} px）` : '']);
+      v ? `样式 ${v.styles} 款，机型「${v.model}」，生成 ${v.w}×${v.h} PNG → 框内 ${v.lw}×${v.lh} @(${v.lx},${v.ly})（自定义徽标色 #c8102e ${v.red} px / 墨迹 ${v.ink} px）` : '']);
 
-  /* 13d. 相机水印全家福：15 款并排渲染，一眼看完 */
+  /* 13d. 相机水印全家福：15 款并排渲染，一眼看完
+     左列 = 默认（品牌位留空，纯几何徽标）；右列 = 填了自己的品牌名 + 品牌色 */
   {
     const dataUrl = await evaluate(`(async () => {
       var W = window.PMCameraWm;
       if (!W) return null;
-      var H = 104, PAD = 26, CW = 900;
+      var H = 104, PAD = 26, CW = 940, COL = 470;
       var c = document.createElement('canvas');
       c.width = CW;
-      c.height = W.styles.length * (H + 44) + PAD * 2;
+      c.height = W.styles.length * (H + 46) + PAD * 2 + 34;
       var g = c.getContext('2d');
       g.fillStyle = '#f3f1ec'; g.fillRect(0, 0, c.width, c.height);
-      var y = PAD;
+      g.fillStyle = '#7a7a7a';
+      g.font = '15px "Microsoft YaHei", sans-serif';
+      g.textBaseline = 'alphabetic';
+      g.fillText('左：默认（品牌位留空，纯几何徽标 · 不含任何品牌）', PAD, PAD - 8);
+      g.fillText('右：填了自己的品牌名 + 品牌色', PAD + COL, PAD - 8);
+      var y = PAD + 26;
+      function mk(w, h) { var cc = document.createElement('canvas'); cc.width = w; cc.height = h; return cc; }
       W.styles.forEach(function (s) {
-        var r = W.render({ style: s.id, h: H * 2 }, function (w, h) {
-          var cc = document.createElement('canvas'); cc.width = w; cc.height = h; return cc;
-        });
-        var k = H / r.h;
-        g.drawImage(r.canvas, PAD, y, r.w * k, H);
+        var a = W.render({ style: s.id, h: H * 2 }, mk);
+        var ka = H / a.h;
+        g.drawImage(a.canvas, PAD, y, a.w * ka, H);
+        var b = W.render({ style: s.id, h: H * 2, brand: 'LUMINA', markColor: '#c8102e',
+                           model: 'AURA 7', lens: '35mm f/1.4 · 1/250 · ISO 100' }, mk);
+        var kb = H / b.h;
+        g.drawImage(b.canvas, PAD + COL, y, b.w * kb, H);
         g.fillStyle = '#7a7a7a';
         g.font = '15px "Microsoft YaHei", sans-serif';
-        g.textBaseline = 'alphabetic';
-        g.fillText(s.zh + '  ·  ' + s.en + '  ·  ' + s.model, PAD, y + H + 26);
-        y += H + 44;
+        g.fillText(s.zh + '  ·  ' + s.en, PAD, y + H + 26);
+        y += H + 46;
       });
       return c.toDataURL('image/png');
     })()`);
     if (dataUrl && dataUrl.indexOf('base64,') > 0) {
       fs.writeFileSync(path.join(OUT, '07c-camera-marks.png'), Buffer.from(dataUrl.split('base64,')[1], 'base64'));
       report.push({
-        title: '相机水印全家福（15 款 · 程序化生成）', ok: true,
-        note: '徕卡 / 哈苏 / 蔡司 / 富士 / 尼康 / 佳能 / 索尼 / 理光 / 柯达 / 手机联名等，纯 canvas 现画，无素材依赖',
+        title: '相机水印全家福（15 款 · 中性模板）', ok: true,
+        note: '圆标 / 方块 / 竖条 / 纯字标 × 衬线 / 无衬线 / 等宽；左列默认（纯几何徽标，零品牌），右列填了自定义品牌名与色值',
         shot: '07c-camera-marks.png', err: null, data: null
       });
       console.log('PASS  相机水印全家福 — 07c-camera-marks.png');

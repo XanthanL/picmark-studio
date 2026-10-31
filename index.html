@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://xanthanl.github.io/picmark-studio/">
   <meta property="og:locale" content="zh_CN">
   <meta name="twitter:card" content="summary">
-  <link rel="stylesheet" href="css/style.css?v=17">
+  <link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body>
 
@@ -407,10 +407,11 @@
       </div>
       <div class="cam-grid" id="camGrid"></div>
       <div class="cam-fields">
-        <label class="cam-field"><span data-i18n="cam.brand">品牌</span><input type="text" id="camBrand"></label>
+        <label class="cam-field"><span data-i18n="cam.brand">品牌</span><input type="text" id="camBrand" data-i18n-placeholder="cam.ph.brand" placeholder="可留空"></label>
         <label class="cam-field"><span data-i18n="cam.model">机型</span><input type="text" id="camModel"></label>
         <label class="cam-field cam-wide"><span data-i18n="cam.lens">镜头 / 参数</span><input type="text" id="camLens"></label>
-        <label class="cam-field cam-wide"><span data-i18n="cam.tone">配色</span>
+        <label class="cam-field"><span data-i18n="cam.mark">徽标颜色</span><input type="text" id="camMarkColor" placeholder="#c8102e" maxlength="7" spellcheck="false"></label>
+        <label class="cam-field"><span data-i18n="cam.tone">配色</span>
           <select id="camTone">
             <option value="dark" data-i18n="cam.tone.dark">深色字（浅底照片用）</option>
             <option value="light" data-i18n="cam.tone.light">浅色字（深底照片用）</option>
@@ -418,7 +419,7 @@
         </label>
       </div>
       <div class="cam-preview" id="camPreviewBox"><canvas id="camPreview"></canvas></div>
-      <p class="cam-note" data-i18n="cam.note">品牌名与商标归各厂商所有，这里只提供同类排版；文字均可修改，商用请替换为自有标识。</p>
+      <p class="cam-note" data-i18n="cam.note">全部是中立的排版模板：圆标 / 方块 / 竖条 / 纯字标 × 衬线 / 无衬线 / 等宽。文字与徽标颜色都由你填 —— 想做自己品牌的样式就填自己的名字和色值。</p>
       <div class="cam-actions">
         <button type="button" class="btn-small" id="camCancel" data-i18n="cam.cancel">取消</button>
         <button type="button" class="primary-btn" id="camAdd" data-i18n="cam.add">加入画布</button>
@@ -435,19 +436,19 @@
     </div>
   </div>
 
-  <script src="lib/jszip.min.js?v=17"></script>
-  <script src="lib/FileSaver.min.js?v=17"></script>
-  <script src="js/i18n.js?v=17"></script>
-  <script src="js/text-style.js?v=17"></script>
-  <script src="js/layers.js?v=17"></script>
-  <script src="js/layer-presets.js?v=17"></script>
-  <script src="js/custom-select.js?v=17"></script>
-  <script src="js/panel-controls.js?v=17"></script>
-  <script src="js/layer-editor.js?v=17"></script>
-  <script src="js/layer-panel.js?v=17"></script>
-  <script src="js/web-fonts.js?v=17"></script>
-  <script src="js/camera-wm.js?v=17"></script>
-  <script src="js/app.js?v=17"></script>
-  <script src="js/onboarding.js?v=17"></script>
+  <script src="lib/jszip.min.js?v=18"></script>
+  <script src="lib/FileSaver.min.js?v=18"></script>
+  <script src="js/i18n.js?v=18"></script>
+  <script src="js/text-style.js?v=18"></script>
+  <script src="js/layers.js?v=18"></script>
+  <script src="js/layer-presets.js?v=18"></script>
+  <script src="js/custom-select.js?v=18"></script>
+  <script src="js/panel-controls.js?v=18"></script>
+  <script src="js/layer-editor.js?v=18"></script>
+  <script src="js/layer-panel.js?v=18"></script>
+  <script src="js/web-fonts.js?v=18"></script>
+  <script src="js/camera-wm.js?v=18"></script>
+  <script src="js/app.js?v=18"></script>
+  <script src="js/onboarding.js?v=18"></script>
 </body>
 </html>

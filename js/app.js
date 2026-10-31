@@ -106,6 +106,7 @@
     camBrand: document.getElementById('camBrand'),
     camModel: document.getElementById('camModel'),
     camLens: document.getElementById('camLens'),
+    camMarkColor: document.getElementById('camMarkColor'),
     camTone: document.getElementById('camTone'),
     camPreview: document.getElementById('camPreview'),
     camPreviewBox: document.getElementById('camPreviewBox'),
@@ -1438,8 +1439,18 @@
   /* ===== 相机水印库 =====
      相机 / 手机厂商那种「机型 + 镜头参数」水印，全部按参数现画成 PNG，
      再走和上传水印同一条路（image 图层），所以缩放 / 旋转 / 透明度 / 翻转
-     全都能用，出图时也是同一套位图数据，不存在预览与成品不一致。 */
-  var CAM = { style: 'leica', tone: 'dark' };
+     全都能用，出图时也是同一套位图数据，不存在预览与成品不一致。
+     CAM.edited：用户一旦手动改过文字，切样式就不再覆盖他填的内容。 */
+  var CAM = { style: 'dot-serif', tone: 'dark', edited: false };
+
+  function camText() {
+    return {
+      brand: els.camBrand.value,
+      model: els.camModel.value,
+      lens: els.camLens.value,
+      markColor: (els.camMarkColor.value || '').trim()
+    };
+  }
 
   function makeCanvas(w, h) {
     var c = document.createElement('canvas');
@@ -1454,9 +1465,10 @@
 
   function camDrawPreview() {
     if (!window.PMCameraWm) return;
+    var t = camText();
     var r = PMCameraWm.render({
-      style: CAM.style, brand: els.camBrand.value, model: els.camModel.value,
-      lens: els.camLens.value, tone: els.camTone.value, h: 200
+      style: CAM.style, brand: t.brand, model: t.model,
+      lens: t.lens, tone: els.camTone.value, markColor: t.markColor, h: 200
     }, makeCanvas);
     var cv = els.camPreview;
     cv.width = r.w;
@@ -1487,9 +1499,7 @@
       btn.appendChild(span);
       btn.addEventListener('click', function () {
         CAM.style = s.id;
-        els.camBrand.value = s.brand;
-        els.camModel.value = s.model;
-        els.camLens.value = s.lens;
+        if (!CAM.edited) camFillDefaults();
         els.camGrid.querySelectorAll('.cam-item').forEach(function (b) {
           b.setAttribute('aria-pressed', String(b === btn));
         });
@@ -1499,16 +1509,19 @@
     });
   }
 
+  /* 模板里不含任何品牌名，只给中性占位（品牌位留空 = 只显示徽标） */
+  function camFillDefaults() {
+    var d = PMCameraWm.defaults();
+    els.camBrand.value = d.brand;
+    els.camModel.value = d.model;
+    els.camLens.value = d.lens;
+  }
+
   function camOpen() {
     if (!window.PMCameraWm) return;
     if (!state.sourceImage) { els.modeHint.textContent = I18n.t('cam.needImage'); return; }
     camBuildGrid();
-    if (!els.camModel.value) {
-      var s = PMCameraWm.byId(CAM.style) || PMCameraWm.styles[0];
-      els.camBrand.value = s.brand;
-      els.camModel.value = s.model;
-      els.camLens.value = s.lens;
-    }
+    if (!CAM.edited) camFillDefaults();
     els.camTone.value = CAM.tone;
     camDrawPreview();
     els.camMask.hidden = false;
@@ -1518,11 +1531,12 @@
 
   function camAddToCanvas() {
     if (!window.PMCameraWm || !state.sourceImage) return;
-    var name = (els.camModel.value || els.camBrand.value || I18n.t('layer.watermark', '水印'))
+    var t = camText();
+    var name = (t.model || t.brand || I18n.t('layer.watermark', '水印'))
       .replace(/[\\/:*?"<>|]/g, '').trim() || 'camera-mark';
     var r = PMCameraWm.render({
-      style: CAM.style, brand: els.camBrand.value, model: els.camModel.value,
-      lens: els.camLens.value, tone: els.camTone.value, h: 480
+      style: CAM.style, brand: t.brand, model: t.model,
+      lens: t.lens, tone: els.camTone.value, markColor: t.markColor, h: 480
     }, makeCanvas);
     CAM.tone = els.camTone.value;
     var done = function (blob) {
@@ -1544,8 +1558,8 @@
     els.camCancel.addEventListener('click', camClose);
     els.camAdd.addEventListener('click', camAddToCanvas);
     els.camMask.addEventListener('click', function (e) { if (e.target === els.camMask) camClose(); });
-    [els.camBrand, els.camModel, els.camLens].forEach(function (el) {
-      el.addEventListener('input', camDrawPreview);
+    [els.camBrand, els.camModel, els.camLens, els.camMarkColor].forEach(function (el) {
+      el.addEventListener('input', function () { CAM.edited = true; camDrawPreview(); });
     });
     els.camTone.addEventListener('change', camDrawPreview);
     document.addEventListener('keydown', function (e) {
